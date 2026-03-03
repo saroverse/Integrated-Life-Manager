@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "638348507696",
+    "project_id": "integrated-life-manager",
+    "storage_bucket": "integrated-life-manager.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:638348507696:android:d277bbfc7cf5216dd1cbf5",
+        "android_client_info": {
+          "package_name": "saroverse.lifemanager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3uFnUmDY1ATrQgfqax8TKXIF4FdTcK3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

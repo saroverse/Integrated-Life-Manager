@@ -1,0 +1,43 @@
+from pydantic import BaseModel
+
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str | None = None
+    status: str = "pending"
+    priority: str = "medium"
+    due_date: str | None = None
+    recurrence: str | None = None
+    recurrence_rule: str | None = None
+    tags: str | None = None
+    project_id: str | None = None
+
+
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    status: str | None = None
+    priority: str | None = None
+    due_date: str | None = None
+    recurrence: str | None = None
+    recurrence_rule: str | None = None
+    tags: str | None = None
+    project_id: str | None = None
+
+
+class TaskResponse(BaseModel):
+    id: str
+    title: str
+    description: str | None
+    status: str
+    priority: str
+    due_date: str | None
+    recurrence: str | None
+    recurrence_rule: str | None
+    tags: str | None
+    project_id: str | None
+    completed_at: str | None
+    created_at: str
+    updated_at: str
+
+    model_config = {"from_attributes": True}

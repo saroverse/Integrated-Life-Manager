@@ -21,13 +21,13 @@ dependencies:
   go_router: ^13.2.0
 
   # Health Connect (reads Amazfit data via Health Connect)
-  health: ^10.2.0
+  health: ^13.0.0
 
   # Screen time (Android UsageStatsManager)
-  app_usage: ^6.0.0
+  app_usage: ^4.0.1
 
   # Background sync
-  workmanager: ^0.5.2
+  workmanager: ^0.9.0
 
   # Local notifications (offline reminder fallback)
   flutter_local_notifications: ^17.2.4

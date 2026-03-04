@@ -14,7 +14,6 @@ class HealthService {
     HealthDataType.STEPS,
     HealthDataType.HEART_RATE,
     HealthDataType.RESTING_HEART_RATE,
-    HealthDataType.HEART_RATE_VARIABILITY_SDNN,
     HealthDataType.SLEEP_SESSION,
     HealthDataType.SLEEP_DEEP,
     HealthDataType.SLEEP_REM,

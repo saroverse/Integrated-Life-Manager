@@ -10,6 +10,7 @@ from app.config import settings
 from app.database import init_db
 from app.jobs.scheduler import scheduler, setup_scheduler
 from app.routers import (
+    chat,
     dashboard,
     habits,
     health,
@@ -64,6 +65,7 @@ async def auth_middleware(request: Request, call_next):
 
 PREFIX = "/api/v1"
 
+app.include_router(chat.router, prefix=PREFIX)
 app.include_router(tasks.router, prefix=PREFIX)
 app.include_router(habits.router, prefix=PREFIX)
 app.include_router(health.router, prefix=PREFIX)

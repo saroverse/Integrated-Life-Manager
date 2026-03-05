@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     ollama_url: str = "http://localhost:11434"
     preferred_ai_model: str = "mistral:7b-instruct"
     fallback_ai_model: str = "llama3.2:3b"
+    chat_ai_url: str = "http://localhost:11434"
+    chat_model: str = "mistral:7b-instruct"
     claude_api_key: str = ""
     firebase_credentials_path: str = "./firebase-service-account.json"
     device_api_token: str = "change-this-to-a-random-secret"

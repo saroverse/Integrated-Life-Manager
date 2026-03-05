@@ -32,6 +32,23 @@ async def _generate_ollama(prompt: str, system: str, model: str) -> tuple[str, s
         return data["choices"][0]["message"]["content"], model
 
 
+async def generate_chat(messages: list[dict]) -> tuple[str, str]:
+    """Multi-turn chat via configurable local AI. Returns (content, model_used)."""
+    model = settings.chat_model
+    async with httpx.AsyncClient(timeout=180.0) as client:
+        response = await client.post(
+            f"{settings.chat_ai_url}/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 2000,
+            },
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"], model
+
+
 async def _generate_claude(prompt: str, system: str) -> tuple[str, str]:
     model = "claude-haiku-4-5"
     async with httpx.AsyncClient(timeout=60.0) as client:

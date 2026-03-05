@@ -71,7 +71,7 @@ async def get_today_dashboard(db: AsyncSession = Depends(get_db)):
     briefing_q = select(Summary).where(
         Summary.summary_type == "daily_briefing",
         Summary.status == "ready",
-    ).order_by(Summary.created_at.desc())
+    ).order_by(Summary.created_at.desc()).limit(1)
     briefing = (await db.execute(briefing_q)).scalar_one_or_none()
 
     return {

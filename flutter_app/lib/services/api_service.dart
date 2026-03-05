@@ -11,7 +11,7 @@ class ApiService {
     _dio = Dio(BaseOptions(
       baseUrl: '${AppConstants.backendUrl}${AppConstants.apiVersion}',
       connectTimeout: AppConstants.syncTimeout,
-      receiveTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 120),
       headers: {
         'X-Device-Token': AppConstants.deviceToken,
         'Content-Type': 'application/json',
@@ -148,5 +148,34 @@ class ApiService {
   Future<Map<String, dynamic>> updateJournalEntry(String id, Map<String, dynamic> data) async {
     final r = await _dio.put('/journal/$id', data: data);
     return r.data as Map<String, dynamic>;
+  }
+
+  // Chat
+  Future<Map<String, dynamic>> sendChatMessage({
+    required String message,
+    required String sessionId,
+  }) async {
+    final r = await _dio.post('/chat/message', data: {
+      'message': message,
+      'session_id': sessionId,
+    });
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getChatHistory({
+    required String sessionId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final r = await _dio.get('/chat/history', queryParameters: {
+      'session_id': sessionId,
+      'limit': limit,
+      'offset': offset,
+    });
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<void> clearChatHistory(String sessionId) async {
+    await _dio.delete('/chat/history', queryParameters: {'session_id': sessionId});
   }
 }

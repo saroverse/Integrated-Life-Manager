@@ -49,6 +49,9 @@ dependencies:
   # Markdown rendering
   flutter_markdown: ^0.7.3
 
+  # UUID generation (chat session IDs)
+  uuid: ^4.4.0
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

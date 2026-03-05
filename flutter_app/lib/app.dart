@@ -8,6 +8,7 @@ import 'screens/habits/habits_screen.dart';
 import 'screens/health/health_screen.dart';
 import 'screens/briefings/briefings_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/chat/chat_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -23,6 +24,7 @@ final _router = GoRouter(
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
       ],
     ),
+    GoRoute(path: '/chat', builder: (_, __) => const ChatScreen()),
   ],
 );
 
@@ -72,6 +74,12 @@ class ScaffoldWithNav extends StatelessWidget {
               ],
             ),
       body: child,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/chat'),
+        backgroundColor: const Color(0xFF4F6EF7),
+        child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF1A1D27),
         selectedIndex: _selectedIndex(location),

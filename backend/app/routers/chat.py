@@ -26,6 +26,7 @@ async def _build_system_prompt(db: AsyncSession) -> str:
     tasks = await summary_service._get_tasks_for_date(db, today)
     habits = await summary_service._get_habits_for_date(db, today)
     health = await summary_service._get_health_for_date(db, today)
+    screen = await summary_service._get_screen_time_for_date(db, today)
 
     # 7-day averages
     seven_days_ago = (date.today() - timedelta(days=7)).isoformat()
@@ -74,6 +75,9 @@ HABITS:
 
 HEALTH:
 {summary_service._format_health(health)}
+
+SCREEN TIME TODAY:
+Total: {screen['total_hours']}h | Top apps: {', '.join(f"{a['name']} ({int(a['minutes'])}m)" for a in screen['top_apps']) or 'none'}
 
 LAST 7 DAYS (averages):
 {seven_day_summary}"""

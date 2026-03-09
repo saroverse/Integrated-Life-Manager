@@ -8,6 +8,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.reminder import AppSetting, Reminder
 from app.services import summary_service
+from app.services import zepp_service
 from app.services.notification_service import send_push
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,18 @@ async def _run_monthly_recap():
             logger.exception("Failed to generate monthly recap")
 
 
+async def _run_zepp_sync():
+    if not settings.zepp_email or not settings.zepp_password:
+        return  # not configured, skip silently
+    logger.info("Running Zepp health sync")
+    async with AsyncSessionLocal() as db:
+        try:
+            result = await zepp_service.fetch_and_store(db, days_back=3)
+            logger.info(f"Zepp sync done: {result}")
+        except Exception:
+            logger.exception("Zepp sync failed")
+
+
 async def _run_reminder_check():
     now = datetime.now(timezone.utc).isoformat()
     async with AsyncSessionLocal() as db:
@@ -94,4 +107,5 @@ def setup_scheduler():
     scheduler.add_job(_run_weekly_recap, "cron", day_of_week="sun", hour=22, minute=0, id="weekly_recap")
     scheduler.add_job(_run_monthly_recap, "cron", day=1, hour=0, minute=30, id="monthly_recap")
     scheduler.add_job(_run_reminder_check, "interval", minutes=1, id="reminder_check")
+    scheduler.add_job(_run_zepp_sync, "interval", hours=4, id="zepp_sync")
     logger.info("Scheduler jobs configured")

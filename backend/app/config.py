@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     timezone: str = "Europe/Berlin"
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
+    zepp_email: str = ""
+    zepp_password: str = ""
 
 
 settings = Settings()

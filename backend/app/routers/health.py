@@ -1,12 +1,13 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.health import HealthMetric, SleepSession, Workout
 from app.schemas.health import HealthSyncPayload, HealthMetricResponse, SleepSessionResponse
+from app.services import zepp_service
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -134,6 +135,18 @@ async def get_metrics(
     q = q.order_by(HealthMetric.recorded_at.desc())
     result = await db.execute(q)
     return result.scalars().all()
+
+
+@router.post("/zepp-sync")
+async def zepp_sync(days: int = 3, db: AsyncSession = Depends(get_db)):
+    """Manually trigger a Zepp cloud health data sync. Requires ZEPP_EMAIL/ZEPP_PASSWORD in .env."""
+    try:
+        result = await zepp_service.fetch_and_store(db, days_back=days)
+        return result
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Zepp sync failed: {e}")
 
 
 @router.get("/workouts")

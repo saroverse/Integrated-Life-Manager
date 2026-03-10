@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/habit_provider.dart';
@@ -142,7 +143,12 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 8),
         _StatChip(label: 'Habits', value: '$habitsD/$habitsT', icon: Icons.check_circle_outline),
         const SizedBox(width: 8),
-        _StatChip(label: 'Screen', value: '${(screen as double).toStringAsFixed(1)}h', icon: Icons.phone_android),
+        _StatChip(
+          label: 'Screen',
+          value: '${(screen as double).toStringAsFixed(1)}h',
+          icon: Icons.phone_android,
+          onTap: () => context.push('/screen-time'),
+        ),
       ],
     );
   }
@@ -154,25 +160,31 @@ class _StatChip extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  const _StatChip({required this.label, required this.value, required this.icon});
+  final VoidCallback? onTap;
+  const _StatChip({required this.label, required this.value, required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1D27),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF2A2D3A)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 16, color: const Color(0xFF4F6EF7)),
-            const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-          ],
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1D27),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: onTap != null ? const Color(0xFF3A3D4A) : const Color(0xFF2A2D3A),
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 16, color: const Color(0xFF4F6EF7)),
+              const SizedBox(height: 4),
+              Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            ],
+          ),
         ),
       ),
     );

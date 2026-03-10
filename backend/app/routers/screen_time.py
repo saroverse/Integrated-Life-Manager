@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -94,3 +94,89 @@ async def get_screen_time_trends(
         {"date": r.date, "total_seconds": r.total_seconds, "total_hours": round(r.total_seconds / 3600, 2)}
         for r in rows
     ]
+
+
+@router.get("/summary")
+async def get_screen_time_summary(days: int = 7, db: AsyncSession = Depends(get_db)):
+    today = date.today()
+    period_start = (today - timedelta(days=days - 1)).isoformat()
+    yesterday = (today - timedelta(days=1)).isoformat()
+    prev_start = (today - timedelta(days=days * 2 - 1)).isoformat()
+    prev_end = (today - timedelta(days=days)).isoformat()
+
+    # Daily totals for chart (current period)
+    daily_q = (
+        select(ScreenTimeEntry.date, func.sum(ScreenTimeEntry.duration_seconds).label("total_seconds"))
+        .where(ScreenTimeEntry.date >= period_start)
+        .group_by(ScreenTimeEntry.date)
+        .order_by(ScreenTimeEntry.date)
+    )
+    daily_rows = (await db.execute(daily_q)).all()
+
+    # Previous period avg (for comparison)
+    prev_q = (
+        select(ScreenTimeEntry.date, func.sum(ScreenTimeEntry.duration_seconds).label("total_seconds"))
+        .where(ScreenTimeEntry.date >= prev_start, ScreenTimeEntry.date <= prev_end)
+        .group_by(ScreenTimeEntry.date)
+    )
+    prev_rows = (await db.execute(prev_q)).all()
+    prev_avg_s = sum(r.total_seconds for r in prev_rows) / max(len(prev_rows), 1)
+
+    # Today's per-app breakdown
+    today_apps_q = (
+        select(ScreenTimeEntry)
+        .where(ScreenTimeEntry.date == today.isoformat())
+        .order_by(ScreenTimeEntry.duration_seconds.desc())
+    )
+    today_apps = (await db.execute(today_apps_q)).scalars().all()
+    today_total_s = sum(a.duration_seconds for a in today_apps)
+
+    # Yesterday total (for daily delta)
+    yest_q = select(func.sum(ScreenTimeEntry.duration_seconds)).where(ScreenTimeEntry.date == yesterday)
+    yest_total_s = (await db.execute(yest_q)).scalar() or 0
+
+    # Category breakdown for current period
+    cat_q = (
+        select(ScreenTimeEntry.app_category, func.sum(ScreenTimeEntry.duration_seconds).label("total_seconds"))
+        .where(ScreenTimeEntry.date >= period_start)
+        .group_by(ScreenTimeEntry.app_category)
+        .order_by(desc("total_seconds"))
+    )
+    cat_rows = (await db.execute(cat_q)).all()
+
+    current_sum = sum(r.total_seconds for r in daily_rows)
+    current_avg_s = current_sum / max(len(daily_rows), 1)
+
+    return {
+        "period_days": days,
+        "current_avg_hours": round(current_avg_s / 3600, 2),
+        "previous_avg_hours": round(prev_avg_s / 3600, 2),
+        "today": {
+            "total_seconds": today_total_s,
+            "total_hours": round(today_total_s / 3600, 2),
+            "apps": [
+                {
+                    "app_name": a.app_name,
+                    "app_package": a.app_package,
+                    "app_category": a.app_category,
+                    "duration_seconds": a.duration_seconds,
+                    "duration_minutes": round(a.duration_seconds / 60),
+                    "launch_count": a.launch_count,
+                }
+                for a in today_apps
+            ],
+        },
+        "yesterday_hours": round(yest_total_s / 3600, 2),
+        "daily": [
+            {"date": r.date, "total_seconds": r.total_seconds, "total_hours": round(r.total_seconds / 3600, 2)}
+            for r in daily_rows
+        ],
+        "categories": [
+            {
+                "name": r.app_category or "other",
+                "total_seconds": r.total_seconds,
+                "total_hours": round(r.total_seconds / 3600, 2),
+            }
+            for r in cat_rows
+        ],
+    }

@@ -90,6 +90,11 @@ class ApiService {
     await _dio.post('/screen-time/sync', data: {'entries': entries});
   }
 
+  Future<Map<String, dynamic>> getScreenTimeSummary({int days = 7}) async {
+    final r = await _dio.get('/screen-time/summary', queryParameters: {'days': days});
+    return r.data as Map<String, dynamic>;
+  }
+
   // Summaries
   Future<Map<String, dynamic>?> getLatestSummary(String type) async {
     try {

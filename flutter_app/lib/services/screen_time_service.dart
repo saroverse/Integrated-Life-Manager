@@ -1,4 +1,5 @@
 import 'package:app_usage/app_usage.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../config/constants.dart';
 
@@ -8,6 +9,22 @@ class ScreenTimeService {
   static final ScreenTimeService _instance = ScreenTimeService._internal();
   factory ScreenTimeService() => _instance;
   ScreenTimeService._internal();
+
+  static const _channel = MethodChannel('saroverse.lifemanager/usage_stats');
+
+  /// Returns true if the PACKAGE_USAGE_STATS permission has been granted.
+  Future<bool> hasPermission() async {
+    try {
+      return await _channel.invokeMethod<bool>('checkPermission') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Opens Android's Usage Access settings screen so the user can grant permission.
+  Future<void> openSettings() async {
+    await _channel.invokeMethod('openSettings');
+  }
 
   final fmt = DateFormat('yyyy-MM-dd');
   final isoFmt = DateFormat("yyyy-MM-dd'T'HH:mm:ss");

@@ -12,9 +12,11 @@ from app.jobs.scheduler import scheduler, setup_scheduler
 from app.routers import (
     chat,
     dashboard,
+    events,
     habits,
     health,
     journal,
+    planner,
     reminders,
     screen_time,
     summaries,
@@ -67,6 +69,8 @@ PREFIX = "/api/v1"
 
 app.include_router(chat.router, prefix=PREFIX)
 app.include_router(tasks.router, prefix=PREFIX)
+app.include_router(events.router, prefix=PREFIX)
+app.include_router(planner.router, prefix=PREFIX)
 app.include_router(habits.router, prefix=PREFIX)
 app.include_router(health.router, prefix=PREFIX)
 app.include_router(screen_time.router, prefix=PREFIX)

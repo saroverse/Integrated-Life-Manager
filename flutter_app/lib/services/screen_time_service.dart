@@ -40,13 +40,13 @@ class ScreenTimeService {
 
       return usageList
           .where((u) =>
-              u.usage.inSeconds > 0 &&
+              u.usage.inSeconds >= AppConstants.minUsageSeconds &&
               !AppConstants.excludedPackages.contains(u.packageName))
           .map((u) => {
                 'id': '${u.packageName}_$dateStr',
                 'date': dateStr,
                 'app_package': u.packageName,
-                'app_name': u.appName,
+                'app_name': _cleanAppName(u.appName, u.packageName),
                 'app_category': _categorize(u.packageName),
                 'duration_seconds': u.usage.inSeconds,
                 'launch_count': 0,
@@ -81,20 +81,24 @@ class ScreenTimeService {
         'primevideo', 'disneyplus', 'viaplay'])) {
       return 'entertainment';
     }
-    if (_matches(lower, ['chrome', 'firefox', 'samsung.internet', 'opera', 'brave'])) {
+    if (_matches(lower, ['chrome', 'firefox', 'sbrowser', 'samsung.internet', 'opera', 'brave', 'kiwi'])) {
       return 'browser';
     }
-    if (_matches(lower, ['maps', 'uber', 'bolt', 'waze', 'transit'])) {
+    if (_matches(lower, ['maps', 'uber', 'bolt', 'waze', 'transit', 'navigation', 'gearhead'])) {
       return 'navigation';
     }
     if (_matches(lower, ['gmail', 'outlook', 'calendar', 'docs', 'sheets',
-        'notion', 'todoist', 'slack', 'teams', 'zoom'])) {
+        'notion', 'todoist', 'slack', 'teams', 'zoom', 'office', 'word', 'excel'])) {
       return 'productivity';
     }
-    if (_matches(lower, ['games', 'gaming', 'pubg', 'roblox', 'minecraft'])) {
+    if (_matches(lower, ['games', 'gaming', 'pubg', 'roblox', 'minecraft',
+        'supercell', 'clashroyale', 'clashofclans', 'brawlstars', 'royale',
+        'fortnite', 'callofduty', 'mobilelegends', 'freefire', 'tipico',
+        'askus', 'spond'])) {
       return 'gaming';
     }
-    if (_matches(lower, ['health', 'fitness', 'zepp', 'strava', 'training'])) {
+    if (_matches(lower, ['health', 'fitness', 'zepp', 'strava', 'training',
+        'shealth', 'simplehealth', 'amazfit', 'huami', 'hmwatchmanager'])) {
       return 'health';
     }
     return 'other';
@@ -102,4 +106,24 @@ class ScreenTimeService {
 
   bool _matches(String pkg, List<String> keywords) =>
       keywords.any((kw) => pkg.contains(kw));
+
+  /// The `app_usage` package derives app names from the package name, which gives
+  /// misleading results like "android" for "com.instagram.android".
+  /// Fall back to the last meaningful segment of the package name.
+  String _cleanAppName(String appName, String packageName) {
+    // If the returned name is just a generic word, derive from the package instead
+    const generic = {'android', 'app', 'main', 'mobile', 'client', 'lite'};
+    if (generic.contains(appName.toLowerCase())) {
+      // e.g. com.instagram.android → Instagram
+      final parts = packageName.split('.');
+      // Find the most meaningful part (skip 'com', 'org', 'de', 'at', etc.)
+      final skip = {'com', 'org', 'net', 'de', 'at', 'io', 'co', 'uk', 'android', 'app'};
+      final candidate = parts.lastWhere(
+        (p) => p.length > 2 && !skip.contains(p),
+        orElse: () => parts.last,
+      );
+      return candidate[0].toUpperCase() + candidate.substring(1);
+    }
+    return appName;
+  }
 }

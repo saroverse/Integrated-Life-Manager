@@ -7,6 +7,7 @@ class TaskCreate(BaseModel):
     status: str = "pending"
     priority: str = "medium"
     due_date: str | None = None
+    due_time: str | None = None
     recurrence: str | None = None
     recurrence_rule: str | None = None
     tags: str | None = None
@@ -19,6 +20,7 @@ class TaskUpdate(BaseModel):
     status: str | None = None
     priority: str | None = None
     due_date: str | None = None
+    due_time: str | None = None
     recurrence: str | None = None
     recurrence_rule: str | None = None
     tags: str | None = None
@@ -32,6 +34,7 @@ class TaskResponse(BaseModel):
     status: str
     priority: str
     due_date: str | None
+    due_time: str | None
     recurrence: str | None
     recurrence_rule: str | None
     tags: str | None

@@ -39,7 +39,7 @@ async def list_summaries(
 async def get_latest_summary(type: str = "daily_briefing", db: AsyncSession = Depends(get_db)):
     q = select(Summary).where(Summary.summary_type == type, Summary.status == "ready").order_by(
         Summary.created_at.desc()
-    )
+    ).limit(1)
     result = await db.execute(q)
     return result.scalar_one_or_none()
 

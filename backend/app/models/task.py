@@ -13,6 +13,7 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String, default="pending")
     priority: Mapped[str] = mapped_column(String, default="medium")
     due_date: Mapped[str | None] = mapped_column(String)
+    due_time: Mapped[str | None] = mapped_column(String)  # HH:MM
     recurrence: Mapped[str | None] = mapped_column(String)
     recurrence_rule: Mapped[str | None] = mapped_column(String)
     tags: Mapped[str | None] = mapped_column(Text)

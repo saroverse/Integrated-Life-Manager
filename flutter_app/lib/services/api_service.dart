@@ -155,6 +155,40 @@ class ApiService {
     return r.data as Map<String, dynamic>;
   }
 
+  // Events
+  Future<List<dynamic>> getEvents({String? start, String? end}) async {
+    final r = await _dio.get('/events', queryParameters: {
+      if (start != null) 'start': start,
+      if (end != null) 'end': end,
+    });
+    return r.data as List;
+  }
+
+  Future<Map<String, dynamic>> createEvent(Map<String, dynamic> data) async {
+    final r = await _dio.post('/events', data: data);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateEvent(String id, Map<String, dynamic> data) async {
+    final r = await _dio.put('/events/$id', data: data);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<void> deleteEvent(String id) async {
+    await _dio.delete('/events/$id');
+  }
+
+  // Planner
+  Future<Map<String, dynamic>> getPlannerDay(String date) async {
+    final r = await _dio.get('/planner/day', queryParameters: {'date': date});
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getPlannerWeek(String start) async {
+    final r = await _dio.get('/planner/week', queryParameters: {'start': start});
+    return r.data as List;
+  }
+
   // Chat
   Future<Map<String, dynamic>> sendChatMessage({
     required String message,

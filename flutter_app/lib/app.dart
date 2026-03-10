@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'screens/home/home_screen.dart';
-import 'screens/tasks/tasks_screen.dart';
+import 'screens/planner/planner_screen.dart';
 import 'screens/habits/habits_screen.dart';
 import 'screens/health/health_screen.dart';
 import 'screens/briefings/briefings_screen.dart';
@@ -18,7 +17,7 @@ final _router = GoRouter(
       builder: (context, state, child) => ScaffoldWithNav(child: child),
       routes: [
         GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
-        GoRoute(path: '/tasks', builder: (_, __) => const TasksScreen()),
+        GoRoute(path: '/tasks', builder: (_, __) => const PlannerScreen()),
         GoRoute(path: '/habits', builder: (_, __) => const HabitsScreen()),
         GoRoute(path: '/health', builder: (_, __) => const HealthScreen()),
         GoRoute(path: '/briefings', builder: (_, __) => const BriefingsScreen()),
@@ -88,7 +87,7 @@ class ScaffoldWithNav extends StatelessWidget {
         onDestinationSelected: (i) => context.go(_routes[i]),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.check_box_outlined), selectedIcon: Icon(Icons.check_box), label: 'Tasks'),
+          NavigationDestination(icon: Icon(Icons.calendar_today_outlined), selectedIcon: Icon(Icons.calendar_today), label: 'Planner'),
           NavigationDestination(icon: Icon(Icons.repeat_outlined), selectedIcon: Icon(Icons.repeat), label: 'Habits'),
           NavigationDestination(icon: Icon(Icons.favorite_outline), selectedIcon: Icon(Icons.favorite), label: 'Health'),
           NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome), label: 'AI'),

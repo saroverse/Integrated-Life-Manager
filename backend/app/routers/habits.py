@@ -304,6 +304,7 @@ async def get_habit_calendar(
             "color": habit.color,
             "frequency": habit.frequency,
             "frequency_days": habit.frequency_days,
+            "created_at": habit.created_at,
         },
         "days": days,
         "stats": {

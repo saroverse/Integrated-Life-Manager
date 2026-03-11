@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../services/api_service.dart';
 import '../../providers/habit_provider.dart';
 import 'habit_detail_screen.dart';
+import 'add_habit_screen.dart';
 
 class HabitsScreen extends ConsumerStatefulWidget {
   const HabitsScreen({super.key});
@@ -45,7 +45,10 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> with SingleTickerPr
         listenable: _tabController,
         builder: (_, __) => _tabController.index == 0
             ? FloatingActionButton(
-                onPressed: () => _showAddHabitSheet(context, ref),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddHabitScreen()),
+                ),
                 backgroundColor: const Color(0xFF4F6EF7),
                 child: const Icon(Icons.add),
               )
@@ -57,104 +60,6 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> with SingleTickerPr
           _TodayTab(),
           _StatsTab(),
         ],
-      ),
-    );
-  }
-
-  Future<void> _showAddHabitSheet(BuildContext context, WidgetRef ref) async {
-    final nameCtrl = TextEditingController();
-    final iconCtrl = TextEditingController();
-    String frequency = 'daily';
-    String? selectedColor;
-    const colors = ['#4F6EF7', '#2ECC71', '#E74C3C', '#F39C12', '#9B59B6', '#1ABC9C'];
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF1A1D27),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('New Habit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 60,
-                    child: TextField(
-                      controller: iconCtrl,
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(hintText: '🏋️', border: OutlineInputBorder()),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: nameCtrl,
-                      autofocus: true,
-                      decoration: const InputDecoration(hintText: 'Habit name...', border: OutlineInputBorder()),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: frequency,
-                decoration: const InputDecoration(labelText: 'Frequency', border: OutlineInputBorder()),
-                items: ['daily', 'weekdays', 'weekly']
-                    .map((f) => DropdownMenuItem(value: f, child: Text(f)))
-                    .toList(),
-                onChanged: (v) => setState(() => frequency = v!),
-              ),
-              const SizedBox(height: 12),
-              const Text('Color', style: TextStyle(color: Colors.grey, fontSize: 13)),
-              const SizedBox(height: 8),
-              Row(
-                children: colors.map((c) {
-                  final color = Color(int.parse('FF${c.substring(1)}', radix: 16));
-                  final selected = selectedColor == c;
-                  return GestureDetector(
-                    onTap: () => setState(() => selectedColor = c),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: selected ? Border.all(color: Colors.white, width: 2) : null,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () async {
-                    if (nameCtrl.text.isEmpty) return;
-                    await ApiService().createHabit({
-                      'name': nameCtrl.text,
-                      'frequency': frequency,
-                      if (iconCtrl.text.isNotEmpty) 'icon': iconCtrl.text,
-                      if (selectedColor != null) 'color': selectedColor,
-                    });
-                    ref.invalidate(habitsTodayProvider);
-                    ref.invalidate(habitsStatsProvider(30));
-                    if (context.mounted) Navigator.pop(ctx);
-                  },
-                  child: const Text('Create Habit'),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -499,7 +404,7 @@ class _WeekBarChart extends StatelessWidget {
                   letterSpacing: 1.2)),
           const SizedBox(height: 16),
           SizedBox(
-            height: 80,
+            height: 110,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: List.generate(7, (i) {

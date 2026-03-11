@@ -107,5 +107,5 @@ def setup_scheduler():
     scheduler.add_job(_run_weekly_recap, "cron", day_of_week="sun", hour=22, minute=0, id="weekly_recap")
     scheduler.add_job(_run_monthly_recap, "cron", day=1, hour=0, minute=30, id="monthly_recap")
     scheduler.add_job(_run_reminder_check, "interval", minutes=1, id="reminder_check")
-    scheduler.add_job(_run_zepp_sync, "interval", hours=4, id="zepp_sync")
+    scheduler.add_job(_run_zepp_sync, "cron", hour=6, minute=30, id="zepp_sync")
     logger.info("Scheduler jobs configured")

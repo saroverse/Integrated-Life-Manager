@@ -70,8 +70,30 @@ class ApiService {
     return r.data as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> updateHabit(String id, Map<String, dynamic> data) async {
+    final r = await _dio.put('/habits/$id', data: data);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<void> deleteHabit(String id) async {
+    await _dio.delete('/habits/$id');
+  }
+
   Future<Map<String, dynamic>> getHabitStreak(String id) async {
     final r = await _dio.get('/habits/$id/streak');
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getHabitsStats({int days = 30}) async {
+    final r = await _dio.get('/habits/stats', queryParameters: {'days': days});
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getHabitCalendar(String id, {String? start, String? end}) async {
+    final r = await _dio.get('/habits/$id/calendar', queryParameters: {
+      if (start != null) 'start': start,
+      if (end != null) 'end': end,
+    });
     return r.data as Map<String, dynamic>;
   }
 

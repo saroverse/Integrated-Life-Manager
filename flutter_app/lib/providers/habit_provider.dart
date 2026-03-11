@@ -7,6 +7,14 @@ final habitsTodayProvider = FutureProvider<List<dynamic>>((ref) async {
   return ApiService().getHabitsToday();
 });
 
+final habitsStatsProvider = FutureProvider.family<Map<String, dynamic>, int>((ref, days) async {
+  return ApiService().getHabitsStats(days: days);
+});
+
+final habitCalendarProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
+  return ApiService().getHabitCalendar(id);
+});
+
 final habitLogProvider = NotifierProvider<HabitLogNotifier, void>(HabitLogNotifier.new);
 
 class HabitLogNotifier extends Notifier<void> {

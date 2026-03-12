@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'services/local_cache.dart';
+import 'services/sync_service.dart';
 
 import 'screens/home/home_screen.dart';
 import 'screens/planner/planner_screen.dart';
@@ -74,7 +76,17 @@ class ScaffoldWithNav extends StatelessWidget {
                 ),
               ],
             ),
-      body: child,
+      body: Column(
+        children: [
+          ValueListenableBuilder<int>(
+            valueListenable: pendingOpsNotifier,
+            builder: (_, count, __) => count > 0
+                ? _OfflineBanner(count: count)
+                : const SizedBox.shrink(),
+          ),
+          Expanded(child: child),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/chat'),
         backgroundColor: const Color(0xFF4F6EF7),
@@ -103,5 +115,63 @@ class ScaffoldWithNav extends StatelessWidget {
       if (location.startsWith(_routes[i])) return i;
     }
     return 0;
+  }
+}
+
+// ─── Offline Banner ───────────────────────────────────────────────────────────
+
+class _OfflineBanner extends StatefulWidget {
+  final int count;
+  const _OfflineBanner({required this.count});
+
+  @override
+  State<_OfflineBanner> createState() => _OfflineBannerState();
+}
+
+class _OfflineBannerState extends State<_OfflineBanner> {
+  bool _syncing = false;
+
+  Future<void> _trySyncNow() async {
+    setState(() => _syncing = true);
+    await SyncService().flushPendingOps();
+    setState(() => _syncing = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFF2A1F00),
+      child: InkWell(
+        onTap: _syncing ? null : _trySyncNow,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.cloud_off, color: Color(0xFFF39C12), size: 14),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${widget.count} unsaved change${widget.count == 1 ? '' : 's'} — will sync when back online',
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFFF39C12)),
+                ),
+              ),
+              _syncing
+                  ? const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: Color(0xFFF39C12)))
+                  : const Text('Retry',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFF39C12),
+                          fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -8,6 +8,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'app.dart';
 import 'services/api_service.dart';
+import 'services/local_cache.dart';
 import 'services/sync_service.dart';
 
 final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -23,6 +24,9 @@ Future<void> main() async {
 
   // Init Hive for local cache
   await Hive.initFlutter();
+
+  // Init offline cache & pending queue
+  await LocalCache.init();
 
   // Init Firebase (skip gracefully if google-services.json not configured)
   try {

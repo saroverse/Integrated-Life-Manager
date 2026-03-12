@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 import 'api_service.dart';
 import 'health_service.dart';
+import 'local_cache.dart';
 import 'screen_time_service.dart';
 
 const syncTaskName = 'ilm_background_sync';
@@ -42,8 +43,34 @@ class SyncService {
     );
   }
 
+  /// Replay any mutations that were queued while the backend was offline.
+  Future<void> flushPendingOps() async {
+    final ops = LocalCache.pendingOps;
+    if (ops.isEmpty) return;
+
+    for (final op in ops) {
+      try {
+        switch (op.method) {
+          case 'POST':
+            await _api.rawPost(op.path, op.body);
+          case 'PUT':
+            await _api.rawPut(op.path, op.body);
+          case 'DELETE':
+            await _api.rawDelete(op.path);
+        }
+        await LocalCache.dequeue(op.id);
+      } catch (_) {
+        // Stop replaying if backend is still unreachable
+        break;
+      }
+    }
+  }
+
   /// Sync all data: health + screen time. Call on app open and in background.
   Future<SyncResult> syncAll() async {
+    // First flush any writes queued while offline
+    await flushPendingOps();
+
     final prefs = await SharedPreferences.getInstance();
     final lastSyncStr = prefs.getString(_lastSyncKey);
     final lastSync = lastSyncStr != null

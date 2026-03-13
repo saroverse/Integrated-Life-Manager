@@ -1,28 +1,28 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class HabitCreate(BaseModel):
-    name: str
-    description: str | None = None
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=500)
     frequency: str = "daily"
-    frequency_days: str | None = None
+    frequency_days: str | None = Field(None, max_length=100)
     target_count: int = 1
-    icon: str | None = None
-    color: str | None = None
-    category: str | None = None
-    reminder_time: str | None = None
+    icon: str | None = Field(None, max_length=50)
+    color: str | None = Field(None, max_length=20)
+    category: str | None = Field(None, max_length=100)
+    reminder_time: str | None = Field(None, max_length=10)
 
 
 class HabitUpdate(BaseModel):
-    name: str | None = None
-    description: str | None = None
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=500)
     frequency: str | None = None
-    frequency_days: str | None = None
+    frequency_days: str | None = Field(None, max_length=100)
     target_count: int | None = None
-    icon: str | None = None
-    color: str | None = None
-    category: str | None = None
-    reminder_time: str | None = None
+    icon: str | None = Field(None, max_length=50)
+    color: str | None = Field(None, max_length=20)
+    category: str | None = Field(None, max_length=100)
+    reminder_time: str | None = Field(None, max_length=10)
     active: int | None = None
 
 
@@ -45,10 +45,10 @@ class HabitResponse(BaseModel):
 
 
 class HabitLogCreate(BaseModel):
-    date: str
+    date: str = Field(..., min_length=10, max_length=10)
     completed: int = 1
     count: int = 1
-    note: str | None = None
+    note: str | None = Field(None, max_length=500)
 
 
 class HabitLogResponse(BaseModel):

@@ -1,13 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReminderCreate(BaseModel):
-    entity_type: str
-    entity_id: str | None = None
-    title: str
-    body: str | None = None
-    scheduled_at: str
-    recurrence: str | None = None
+    entity_type: str = Field(..., min_length=1, max_length=50)
+    entity_id: str | None = Field(None, max_length=100)
+    title: str = Field(..., min_length=1, max_length=200)
+    body: str | None = Field(None, max_length=1000)
+    scheduled_at: str = Field(..., min_length=1, max_length=30)
+    recurrence: str | None = Field(None, max_length=50)
 
 
 class ReminderResponse(BaseModel):
@@ -26,4 +26,4 @@ class ReminderResponse(BaseModel):
 
 
 class DeviceTokenRegister(BaseModel):
-    fcm_token: str
+    fcm_token: str = Field(..., min_length=1, max_length=500)

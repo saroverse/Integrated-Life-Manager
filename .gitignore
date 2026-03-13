@@ -1,0 +1,30 @@
+# ── Python / Backend ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+backend/venv/
+backend/.env
+backend/ilm.db
+backend/firebase-service-account.json
+.zepp_token_cache.json
+
+# ── Web dashboard ─────────────────────────────────────────────────────────────
+web_dashboard/node_modules/
+web_dashboard/dist/
+backend/static/
+web_dashboard/.env
+web_dashboard/.env.local
+
+# ── Flutter ───────────────────────────────────────────────────────────────────
+flutter_app/dart_defines.json
+flutter_app/build/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp

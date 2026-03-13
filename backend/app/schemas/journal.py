@@ -1,19 +1,19 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class JournalEntryCreate(BaseModel):
-    date: str
-    content: str
-    mood: int | None = None
-    energy: int | None = None
-    tags: str | None = None
+    date: str = Field(..., min_length=10, max_length=10)
+    content: str = Field(..., min_length=1, max_length=50000)
+    mood: int | None = Field(None, ge=1, le=10)
+    energy: int | None = Field(None, ge=1, le=10)
+    tags: str | None = Field(None, max_length=500)
 
 
 class JournalEntryUpdate(BaseModel):
-    content: str | None = None
-    mood: int | None = None
-    energy: int | None = None
-    tags: str | None = None
+    content: str | None = Field(None, min_length=1, max_length=50000)
+    mood: int | None = Field(None, ge=1, le=10)
+    energy: int | None = Field(None, ge=1, le=10)
+    tags: str | None = Field(None, max_length=500)
 
 
 class JournalEntryResponse(BaseModel):

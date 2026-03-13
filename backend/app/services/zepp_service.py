@@ -12,7 +12,6 @@ Requires ZEPP_EMAIL and ZEPP_PASSWORD in backend/.env
 import base64
 import json
 import logging
-import pathlib
 import time
 import urllib.parse
 import uuid
@@ -26,34 +25,10 @@ from app.models.health import HealthMetric, SleepSession
 
 logger = logging.getLogger(__name__)
 
-# Token cache — persisted to disk so restarts don't trigger re-auth
-_TOKEN_FILE = pathlib.Path(__file__).parent.parent.parent / ".zepp_token_cache.json"
+# Token cache — in-memory only; re-auth happens automatically on restart (takes ~1 s)
 _cached_token: str | None = None
 _cached_user_id: str | None = None
 _token_expiry: float = 0
-
-
-def _load_token_cache() -> None:
-    global _cached_token, _cached_user_id, _token_expiry
-    try:
-        if _TOKEN_FILE.exists():
-            data = json.loads(_TOKEN_FILE.read_text())
-            _cached_token = data.get("token")
-            _cached_user_id = data.get("user_id")
-            _token_expiry = data.get("expiry", 0)
-    except Exception:
-        pass
-
-
-def _save_token_cache(token: str, user_id: str, expiry: float) -> None:
-    try:
-        _TOKEN_FILE.write_text(json.dumps({"token": token, "user_id": user_id, "expiry": expiry}))
-    except Exception:
-        pass
-
-
-# Load on module import
-_load_token_cache()
 
 
 def _device_id() -> str:
@@ -132,7 +107,6 @@ async def _authenticate() -> tuple[str, str]:
     _cached_token = app_token
     _cached_user_id = user_id
     _token_expiry = time.time() + 23 * 3600
-    _save_token_cache(app_token, user_id, _token_expiry)
     logger.info(f"Zepp authenticated, user_id={user_id}")
     return app_token, user_id
 

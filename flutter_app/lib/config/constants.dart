@@ -1,11 +1,15 @@
 class AppConstants {
-  // Backend URL — set to your Mac's local IP address on your home WiFi
-  // Find it with: ifconfig | grep "inet " | grep -v 127.0.0.1
-  // Or use Tailscale address if running remotely
-  static const String backendUrl = 'http://192.168.2.124:8000';
+  // Injected at build/run time via --dart-define-from-file=dart_defines.json
+  // Copy dart_defines.json.example → dart_defines.json and fill in your values.
+  // Build: flutter build apk --dart-define-from-file=dart_defines.json
+  // Run:   flutter run --dart-define-from-file=dart_defines.json
+  static const String backendUrl = String.fromEnvironment(
+    'BACKEND_URL',
+    defaultValue: 'http://localhost:8000',
+  );
 
   static const String apiVersion = '/api/v1';
-  static const String deviceToken = '***REMOVED***';
+  static const String deviceToken = String.fromEnvironment('DEVICE_TOKEN');
 
   static const Duration syncInterval = Duration(hours: 2);
   static const Duration syncTimeout = Duration(seconds: 30);

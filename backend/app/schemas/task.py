@@ -1,30 +1,30 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TaskCreate(BaseModel):
-    title: str
-    description: str | None = None
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str | None = Field(None, max_length=2000)
     status: str = "pending"
     priority: str = "medium"
     due_date: str | None = None
     due_time: str | None = None
-    recurrence: str | None = None
-    recurrence_rule: str | None = None
-    tags: str | None = None
-    project_id: str | None = None
+    recurrence: str | None = Field(None, max_length=50)
+    recurrence_rule: str | None = Field(None, max_length=500)
+    tags: str | None = Field(None, max_length=500)
+    project_id: str | None = Field(None, max_length=100)
 
 
 class TaskUpdate(BaseModel):
-    title: str | None = None
-    description: str | None = None
+    title: str | None = Field(None, min_length=1, max_length=200)
+    description: str | None = Field(None, max_length=2000)
     status: str | None = None
     priority: str | None = None
     due_date: str | None = None
     due_time: str | None = None
-    recurrence: str | None = None
-    recurrence_rule: str | None = None
-    tags: str | None = None
-    project_id: str | None = None
+    recurrence: str | None = Field(None, max_length=50)
+    recurrence_rule: str | None = Field(None, max_length=500)
+    tags: str | None = Field(None, max_length=500)
+    project_id: str | None = Field(None, max_length=100)
 
 
 class TaskResponse(BaseModel):

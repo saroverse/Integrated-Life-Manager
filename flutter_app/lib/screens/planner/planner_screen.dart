@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../providers/planner_provider.dart';
 import '../../services/api_service.dart';
@@ -42,10 +43,30 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         }
       });
 
-  void _goToDate(DateTime d) => setState(() {
-        _selectedDate = d;
-        _view = _PlannerView.day;
-      });
+  void _goToDate(DateTime d) => _showDayPreviewSheet(d);
+
+  void _showDayPreviewSheet(DateTime date) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1A1D27),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.65,
+        minChildSize: 0.35,
+        maxChildSize: 0.92,
+        builder: (_, scrollCtrl) => _DayPreviewSheet(
+          date: date,
+          ref: ref,
+          scrollController: scrollCtrl,
+          onRefresh: _refresh,
+        ),
+      ),
+    );
+  }
 
   void _refresh() {
     ref.invalidate(plannerDayProvider);
@@ -117,12 +138,20 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
             ListTile(
               leading: const Icon(Icons.task_alt, color: Color(0xFF4F6EF7)),
               title: const Text('Add Task'),
+              subtitle: const Text('Create a guided task', style: TextStyle(fontSize: 12)),
               onTap: () => Navigator.pop(context, 'task'),
             ),
             ListTile(
               leading: const Icon(Icons.event, color: Color(0xFF4F6EF7)),
               title: const Text('Add Event'),
+              subtitle: const Text('Schedule a calendar event', style: TextStyle(fontSize: 12)),
               onTap: () => Navigator.pop(context, 'event'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.repeat, color: Color(0xFF4F6EF7)),
+              title: const Text('Add Habit'),
+              subtitle: const Text('Build a recurring routine', style: TextStyle(fontSize: 12)),
+              onTap: () => Navigator.pop(context, 'habit'),
             ),
             const SizedBox(height: 8),
           ],
@@ -131,105 +160,12 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     );
     if (!mounted || choice == null) return;
     if (choice == 'task') {
-      await _showAddTaskSheet(context);
+      context.push('/tasks/add');
     } else if (choice == 'event') {
       await _showAddEventSheet(context);
+    } else if (choice == 'habit') {
+      context.push('/habits/add');
     }
-  }
-
-  Future<void> _showAddTaskSheet(BuildContext context) async {
-    final titleCtrl = TextEditingController();
-    String priority = 'medium';
-    DateTime? dueDate = _selectedDate;
-    TimeOfDay? dueTime;
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF1A1D27),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('New Task', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: titleCtrl,
-                autofocus: true,
-                decoration: const InputDecoration(hintText: 'Task title…', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: priority,
-                decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
-                items: ['low', 'medium', 'high', 'urgent']
-                    .map((p) => DropdownMenuItem(value: p, child: Text(p.toUpperCase())))
-                    .toList(),
-                onChanged: (v) => setS(() => priority = v!),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.calendar_today, size: 16),
-                      label: Text(dueDate != null ? DateFormat('MMM d').format(dueDate!) : 'No date'),
-                      onPressed: () async {
-                        final picked = await showDatePicker(
-                          context: ctx,
-                          initialDate: dueDate ?? DateTime.now(),
-                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                          lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-                        );
-                        if (picked != null) setS(() => dueDate = picked);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.access_time, size: 16),
-                      label: Text(dueTime != null ? dueTime!.format(ctx) : 'No time'),
-                      onPressed: () async {
-                        final picked = await showTimePicker(
-                          context: ctx,
-                          initialTime: dueTime ?? const TimeOfDay(hour: 9, minute: 0),
-                        );
-                        if (picked != null) setS(() => dueTime = picked);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () async {
-                    if (titleCtrl.text.trim().isEmpty) return;
-                    await ApiService().createTask({
-                      'title': titleCtrl.text.trim(),
-                      'priority': priority,
-                      if (dueDate != null) 'due_date': DateFormat('yyyy-MM-dd').format(dueDate!),
-                      if (dueTime != null)
-                        'due_time':
-                            '${dueTime!.hour.toString().padLeft(2, '0')}:${dueTime!.minute.toString().padLeft(2, '0')}',
-                    });
-                    _refresh();
-                    if (context.mounted) Navigator.pop(ctx);
-                  },
-                  child: const Text('Create Task'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _showAddEventSheet(BuildContext context) async {
@@ -943,6 +879,19 @@ class _HabitTileState extends State<_HabitTile> {
 
   @override
   Widget build(BuildContext context) {
+    final frequency = widget.habit['frequency'] as String?;
+    final weekCount = widget.habit['week_count'] as int?;
+    final frequencyCount = widget.habit['frequency_count'] as int?;
+    final frequencyInterval = widget.habit['frequency_interval'] as int?;
+
+    String? subtitle;
+    if (frequency == 'x_per_week' && frequencyCount != null) {
+      final done = weekCount ?? 0;
+      subtitle = '$done/$frequencyCount this week';
+    } else if (frequency == 'interval' && frequencyInterval != null) {
+      subtitle = 'Every $frequencyInterval days';
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
       color: const Color(0xFF1A1D27),
@@ -950,6 +899,15 @@ class _HabitTileState extends State<_HabitTile> {
         dense: true,
         leading: Text(widget.habit['icon'] as String? ?? '✓', style: const TextStyle(fontSize: 20)),
         title: Text(widget.habit['name'] as String, style: const TextStyle(fontSize: 14)),
+        subtitle: subtitle != null
+            ? Text(subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: (frequency == 'x_per_week' && weekCount != null && frequencyCount != null && weekCount >= frequencyCount)
+                      ? const Color(0xFF27AE60)
+                      : Colors.grey,
+                ))
+            : null,
         trailing: _loading
             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator.adaptive(strokeWidth: 2))
             : GestureDetector(
@@ -974,6 +932,163 @@ class _HabitTileState extends State<_HabitTile> {
                 ),
               ),
       ),
+    );
+  }
+}
+
+// ─── Day Preview Sheet (shown on day-tap in week/month view) ─────────────────
+
+class _DayPreviewSheet extends StatelessWidget {
+  final DateTime date;
+  final WidgetRef ref;
+  final ScrollController scrollController;
+  final VoidCallback onRefresh;
+
+  const _DayPreviewSheet({
+    required this.date,
+    required this.ref,
+    required this.scrollController,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final dayAsync = ref.watch(plannerDayProvider(dateStr));
+    final today = DateTime.now();
+    final isToday = date.year == today.year && date.month == today.month && date.day == today.day;
+
+    return Column(
+      children: [
+        // Handle
+        const SizedBox(height: 10),
+        Center(
+          child: Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade700,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        // Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+          child: Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    DateFormat('EEEE').format(date),
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  Text(
+                    DateFormat('d MMMM yyyy').format(date),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isToday ? const Color(0xFF4F6EF7) : Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              if (isToday)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4F6EF7).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF4F6EF7).withOpacity(0.4)),
+                  ),
+                  child: const Text('Today', style: TextStyle(fontSize: 11, color: Color(0xFF4F6EF7), fontWeight: FontWeight.w600)),
+                ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: Color(0xFF2A2D3A)),
+        // Content
+        Expanded(
+          child: dayAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+            error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: Colors.red))),
+            data: (data) {
+              final tasks = List<Map<String, dynamic>>.from(data['tasks'] ?? []);
+              final overdue = List<Map<String, dynamic>>.from(data['overdue_tasks'] ?? []);
+              final habits = List<Map<String, dynamic>>.from(data['habits'] ?? []);
+              final events = List<Map<String, dynamic>>.from(data['events'] ?? []);
+
+              if (tasks.isEmpty && overdue.isEmpty && habits.isEmpty && events.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.wb_sunny_outlined, size: 40, color: Colors.grey.shade700),
+                      const SizedBox(height: 10),
+                      Text('Nothing scheduled', style: TextStyle(color: Colors.grey.shade600)),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.only(bottom: 24),
+                children: [
+                  if (overdue.isNotEmpty) ...[
+                    _SectionHeader(title: 'OVERDUE', color: Colors.red.shade400, badge: overdue.length),
+                    ...overdue.map((t) => _TaskTile(
+                          task: t,
+                          onComplete: () async {
+                            await ApiService().completeTask(t['id'] as String);
+                            onRefresh();
+                          },
+                          onDelete: () async {
+                            await ApiService().deleteTask(t['id'] as String);
+                            onRefresh();
+                          },
+                        )),
+                  ],
+                  if (events.isNotEmpty) ...[
+                    _SectionHeader(title: 'EVENTS', color: Colors.purple.shade300),
+                    ...events.map((e) => _EventTile(
+                          event: e,
+                          onDelete: () async {
+                            await ApiService().deleteEvent(e['id'] as String);
+                            onRefresh();
+                          },
+                        )),
+                  ],
+                  if (tasks.isNotEmpty) ...[
+                    _SectionHeader(title: 'TASKS', color: const Color(0xFF4F6EF7)),
+                    ...tasks.map((t) => _TaskTile(
+                          task: t,
+                          onComplete: () async {
+                            await ApiService().completeTask(t['id'] as String);
+                            onRefresh();
+                          },
+                          onDelete: () async {
+                            await ApiService().deleteTask(t['id'] as String);
+                            onRefresh();
+                          },
+                        )),
+                  ],
+                  if (habits.isNotEmpty) ...[
+                    _SectionHeader(title: 'HABITS', color: const Color(0xFF4F6EF7)),
+                    ...habits.map((h) => _HabitTile(
+                          habit: h,
+                          date: dateStr,
+                          onToggle: onRefresh,
+                        )),
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

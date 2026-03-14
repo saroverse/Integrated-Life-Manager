@@ -6,6 +6,8 @@ class HabitCreate(BaseModel):
     description: str | None = Field(None, max_length=500)
     frequency: str = "daily"
     frequency_days: str | None = Field(None, max_length=100)
+    frequency_interval: int | None = Field(None, ge=2, le=30)
+    frequency_count: int | None = Field(None, ge=1, le=6)
     target_count: int = 1
     icon: str | None = Field(None, max_length=50)
     color: str | None = Field(None, max_length=20)
@@ -18,6 +20,8 @@ class HabitUpdate(BaseModel):
     description: str | None = Field(None, max_length=500)
     frequency: str | None = None
     frequency_days: str | None = Field(None, max_length=100)
+    frequency_interval: int | None = Field(None, ge=2, le=30)
+    frequency_count: int | None = Field(None, ge=1, le=6)
     target_count: int | None = None
     icon: str | None = Field(None, max_length=50)
     color: str | None = Field(None, max_length=20)
@@ -32,6 +36,8 @@ class HabitResponse(BaseModel):
     description: str | None
     frequency: str
     frequency_days: str | None
+    frequency_interval: int | None
+    frequency_count: int | None
     target_count: int
     icon: str | None
     color: str | None

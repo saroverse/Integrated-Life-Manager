@@ -1,3 +1,4 @@
+import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -19,3 +20,12 @@ async def get_db() -> AsyncSession:
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Add columns introduced after initial schema creation
+        for stmt in (
+            "ALTER TABLE habits ADD COLUMN frequency_interval INTEGER",
+            "ALTER TABLE habits ADD COLUMN frequency_count INTEGER",
+        ):
+            try:
+                await conn.execute(sqlalchemy.text(stmt))
+            except Exception:
+                pass  # column already exists

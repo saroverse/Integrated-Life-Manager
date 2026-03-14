@@ -33,6 +33,8 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
   // Step 4 — Schedule
   String _frequency = 'daily';
   final Set<int> _customDays = {0, 1, 2, 3, 4}; // Mon–Fri default
+  int _frequencyCount = 3; // for x_per_week
+  int _frequencyInterval = 2; // for interval (every N days)
 
   // ── Static data ─────────────────────────────────────────────────────────────
 
@@ -122,11 +124,17 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
     try {
       String frequency = _frequency;
       String? frequencyDays;
+      int? frequencyCount;
+      int? frequencyInterval;
 
       if (_frequency == 'custom') {
         frequency = 'weekly';
         final sorted = _customDays.toList()..sort();
         frequencyDays = jsonEncode(sorted);
+      } else if (_frequency == 'x_per_week') {
+        frequencyCount = _frequencyCount;
+      } else if (_frequency == 'interval') {
+        frequencyInterval = _frequencyInterval;
       }
 
       final targetCount = _trackingType == 'done' ? 1 : _targetCount;
@@ -136,6 +144,8 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
         if (_descCtrl.text.trim().isNotEmpty) 'description': _descCtrl.text.trim(),
         'frequency': frequency,
         if (frequencyDays != null) 'frequency_days': frequencyDays,
+        if (frequencyCount != null) 'frequency_count': frequencyCount,
+        if (frequencyInterval != null) 'frequency_interval': frequencyInterval,
         'target_count': targetCount,
         'icon': _icon,
         'color': _color,
@@ -235,11 +245,15 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                   frequency: _frequency,
                   customDays: _customDays,
                   dayNames: _dayNames,
+                  frequencyCount: _frequencyCount,
+                  frequencyInterval: _frequencyInterval,
                   onFrequencyChanged: (v) => setState(() => _frequency = v),
                   onCustomDaysChanged: (v) => setState(() {
                     _customDays.clear();
                     _customDays.addAll(v);
                   }),
+                  onFrequencyCountChanged: (v) => setState(() => _frequencyCount = v),
+                  onFrequencyIntervalChanged: (v) => setState(() => _frequencyInterval = v),
                 ),
               ],
             ),
@@ -767,15 +781,23 @@ class _Step4Schedule extends StatelessWidget {
   final String frequency;
   final Set<int> customDays;
   final List<String> dayNames;
+  final int frequencyCount;
+  final int frequencyInterval;
   final ValueChanged<String> onFrequencyChanged;
   final ValueChanged<Set<int>> onCustomDaysChanged;
+  final ValueChanged<int> onFrequencyCountChanged;
+  final ValueChanged<int> onFrequencyIntervalChanged;
 
   const _Step4Schedule({
     required this.frequency,
     required this.customDays,
     required this.dayNames,
+    required this.frequencyCount,
+    required this.frequencyInterval,
     required this.onFrequencyChanged,
     required this.onCustomDaysChanged,
+    required this.onFrequencyCountChanged,
+    required this.onFrequencyIntervalChanged,
   });
 
   @override
@@ -785,7 +807,6 @@ class _Step4Schedule extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Frequency options
           _FrequencyOption(
             label: 'Every day',
             subtitle: '7 days a week',
@@ -803,23 +824,22 @@ class _Step4Schedule extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _FrequencyOption(
-            label: 'Custom days',
-            subtitle: 'Pick specific days of the week',
+            label: 'Specific days',
+            subtitle: 'Pick exact days of the week',
             icon: Icons.tune,
             selected: frequency == 'custom',
             onTap: () => onFrequencyChanged('custom'),
           ),
-          // Custom day toggles
           if (frequency == 'custom') ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Row(
               children: List.generate(7, (i) {
-                final selected = customDays.contains(i);
+                final sel = customDays.contains(i);
                 return Expanded(
                   child: GestureDetector(
                     onTap: () {
                       final updated = Set<int>.from(customDays);
-                      if (selected) {
+                      if (sel) {
                         updated.remove(i);
                       } else {
                         updated.add(i);
@@ -831,12 +851,12 @@ class _Step4Schedule extends StatelessWidget {
                       margin: EdgeInsets.only(right: i < 6 ? 6 : 0),
                       height: 44,
                       decoration: BoxDecoration(
-                        color: selected
+                        color: sel
                             ? const Color(0xFF4F6EF7)
                             : const Color(0xFF1A1D27),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: selected
+                          color: sel
                               ? const Color(0xFF4F6EF7)
                               : const Color(0xFF2A2D3A),
                         ),
@@ -847,7 +867,7 @@ class _Step4Schedule extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: selected ? Colors.white : Colors.grey,
+                            color: sel ? Colors.white : Colors.grey,
                           ),
                         ),
                       ),
@@ -857,8 +877,43 @@ class _Step4Schedule extends StatelessWidget {
               }),
             ),
           ],
-          const SizedBox(height: 28),
-          // Summary card
+          const SizedBox(height: 10),
+          _FrequencyOption(
+            label: 'X times per week',
+            subtitle: 'Flexible — do it any days you want',
+            icon: Icons.repeat_one,
+            selected: frequency == 'x_per_week',
+            onTap: () => onFrequencyChanged('x_per_week'),
+          ),
+          if (frequency == 'x_per_week') ...[
+            const SizedBox(height: 12),
+            _NumberStepper(
+              value: frequencyCount,
+              min: 1,
+              max: 6,
+              suffix: frequencyCount == 1 ? 'time per week' : 'times per week',
+              onChanged: onFrequencyCountChanged,
+            ),
+          ],
+          const SizedBox(height: 10),
+          _FrequencyOption(
+            label: 'Every N days',
+            subtitle: 'Fixed interval, e.g. every other day',
+            icon: Icons.loop,
+            selected: frequency == 'interval',
+            onTap: () => onFrequencyChanged('interval'),
+          ),
+          if (frequency == 'interval') ...[
+            const SizedBox(height: 12),
+            _NumberStepper(
+              value: frequencyInterval,
+              min: 2,
+              max: 14,
+              suffix: frequencyInterval == 1 ? 'day' : 'days',
+              onChanged: onFrequencyIntervalChanged,
+            ),
+          ],
+          const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -875,13 +930,13 @@ class _Step4Schedule extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _scheduleSummary(),
-                    style:
-                        const TextStyle(fontSize: 13, color: Colors.white70),
+                    style: const TextStyle(fontSize: 13, color: Colors.white70),
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -889,8 +944,12 @@ class _Step4Schedule extends StatelessWidget {
 
   String _scheduleSummary() {
     if (frequency == 'daily') return 'This habit will appear every day.';
-    if (frequency == 'weekdays') {
-      return 'This habit will appear Monday through Friday.';
+    if (frequency == 'weekdays') return 'This habit will appear Monday through Friday.';
+    if (frequency == 'x_per_week') {
+      return 'Goal: $frequencyCount ${frequencyCount == 1 ? 'time' : 'times'} per week — complete on any days you choose.';
+    }
+    if (frequency == 'interval') {
+      return 'This habit will appear every $frequencyInterval days.';
     }
     if (customDays.isEmpty) return 'Select at least one day.';
     final sorted = customDays.toList()..sort();

@@ -12,6 +12,8 @@ class Habit(Base):
     description: Mapped[str | None] = mapped_column(Text)
     frequency: Mapped[str] = mapped_column(String, default="daily")
     frequency_days: Mapped[str | None] = mapped_column(String)  # JSON: [0,1,2,3,4]
+    frequency_interval: Mapped[int | None] = mapped_column(Integer, nullable=True)  # for 'interval': every N days
+    frequency_count: Mapped[int | None] = mapped_column(Integer, nullable=True)  # for 'x_per_week': weekly quota
     target_count: Mapped[int] = mapped_column(Integer, default=1)
     icon: Mapped[str | None] = mapped_column(String)
     color: Mapped[str | None] = mapped_column(String)

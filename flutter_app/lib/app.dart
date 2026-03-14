@@ -5,12 +5,15 @@ import 'services/sync_service.dart';
 
 import 'screens/home/home_screen.dart';
 import 'screens/planner/planner_screen.dart';
-import 'screens/habits/habits_screen.dart';
+import 'screens/stats/stats_screen.dart';
 import 'screens/health/health_screen.dart';
 import 'screens/briefings/briefings_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/chat/chat_screen.dart';
 import 'screens/screen_time/screen_time_screen.dart';
+import 'screens/habits/add_habit_screen.dart';
+import 'screens/habits/habit_detail_screen.dart';
+import 'screens/tasks/add_task_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -20,7 +23,7 @@ final _router = GoRouter(
       routes: [
         GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
         GoRoute(path: '/tasks', builder: (_, __) => const PlannerScreen()),
-        GoRoute(path: '/habits', builder: (_, __) => const HabitsScreen()),
+        GoRoute(path: '/stats', builder: (_, __) => const StatsScreen()),
         GoRoute(path: '/health', builder: (_, __) => const HealthScreen()),
         GoRoute(path: '/briefings', builder: (_, __) => const BriefingsScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
@@ -28,6 +31,12 @@ final _router = GoRouter(
     ),
     GoRoute(path: '/chat', builder: (_, __) => const ChatScreen()),
     GoRoute(path: '/screen-time', builder: (_, __) => const ScreenTimeScreen()),
+    GoRoute(path: '/habits/add', builder: (_, __) => const AddHabitScreen()),
+    GoRoute(
+      path: '/habits/:id',
+      builder: (_, state) => HabitDetailScreen(habitId: state.pathParameters['id']!),
+    ),
+    GoRoute(path: '/tasks/add', builder: (_, __) => const AddTaskScreen()),
   ],
 );
 
@@ -100,7 +109,7 @@ class ScaffoldWithNav extends StatelessWidget {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.calendar_today_outlined), selectedIcon: Icon(Icons.calendar_today), label: 'Planner'),
-          NavigationDestination(icon: Icon(Icons.repeat_outlined), selectedIcon: Icon(Icons.repeat), label: 'Habits'),
+          NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'Stats'),
           NavigationDestination(icon: Icon(Icons.favorite_outline), selectedIcon: Icon(Icons.favorite), label: 'Health'),
           NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome), label: 'AI'),
         ],
@@ -108,7 +117,7 @@ class ScaffoldWithNav extends StatelessWidget {
     );
   }
 
-  static const _routes = ['/', '/tasks', '/habits', '/health', '/briefings'];
+  static const _routes = ['/', '/tasks', '/stats', '/health', '/briefings'];
 
   int _selectedIndex(String location) {
     for (int i = _routes.length - 1; i >= 0; i--) {

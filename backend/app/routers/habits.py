@@ -40,6 +40,14 @@ def _is_scheduled_for(habit: Habit, target: date) -> bool:
     if habit.frequency == "weekly":
         days = json.loads(habit.frequency_days or "[0]")
         return target.weekday() in days
+    if habit.frequency == "x_per_week":
+        # Flexible quota: appears every day; completion tracked against weekly count
+        return True
+    if habit.frequency == "interval":
+        interval = habit.frequency_interval or 2
+        creation = date.fromisoformat(habit.created_at[:10])
+        delta = (target - creation).days
+        return delta >= 0 and delta % interval == 0
     if habit.frequency_days:
         days = json.loads(habit.frequency_days)
         return target.weekday() in days
@@ -90,7 +98,8 @@ async def list_habits(active_only: bool = True, db: AsyncSession = Depends(get_d
 
 @router.get("/today", response_model=list[dict])
 async def list_today_habits(db: AsyncSession = Depends(get_db)):
-    today = _today()
+    today_date = date.today()
+    today = today_date.isoformat()
     q = select(Habit).where(Habit.active == 1)
     result = await db.execute(q)
     habits = result.scalars().all()
@@ -109,16 +118,28 @@ async def list_today_habits(db: AsyncSession = Depends(get_db)):
         all_logs = all_logs_result.scalars().all()
         streak_data = _calc_streak(all_logs)
 
+        # For x_per_week habits, count this week's completions (Mon–Sun)
+        week_count: int | None = None
+        if habit.frequency == "x_per_week":
+            week_start = (today_date - timedelta(days=today_date.weekday())).isoformat()
+            week_count = sum(
+                1 for l in all_logs if l.completed and week_start <= l.date <= today
+            )
+
         today_habits.append({
             "id": habit.id,
             "name": habit.name,
             "icon": habit.icon,
             "color": habit.color,
             "category": habit.category,
+            "frequency": habit.frequency,
+            "frequency_count": habit.frequency_count,
+            "frequency_interval": habit.frequency_interval,
             "target_count": habit.target_count,
             "completed": bool(log and log.completed),
             "log_id": log.id if log else None,
             "current_streak": streak_data["current_streak"],
+            "week_count": week_count,
         })
     return today_habits
 

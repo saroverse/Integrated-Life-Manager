@@ -1,4 +1,4 @@
-from sqlalchemy import Float, Index, String, Text
+from sqlalchemy import Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -32,7 +32,7 @@ class SleepSession(Base):
     rem_sleep: Mapped[float | None] = mapped_column(Float)
     light_sleep: Mapped[float | None] = mapped_column(Float)
     awake_time: Mapped[float | None] = mapped_column(Float)
-    sleep_score: Mapped[int | None] = mapped_column()
+    sleep_score: Mapped[int | None] = mapped_column(Integer)
     source: Mapped[str] = mapped_column(String, default="health_connect")
     raw_data: Mapped[str | None] = mapped_column(Text)
     synced_at: Mapped[str] = mapped_column(String, nullable=False)
@@ -50,9 +50,9 @@ class Workout(Base):
     duration: Mapped[float | None] = mapped_column(Float)  # minutes
     calories: Mapped[float | None] = mapped_column(Float)
     distance: Mapped[float | None] = mapped_column(Float)  # km
-    avg_heart_rate: Mapped[int | None] = mapped_column()
-    max_heart_rate: Mapped[int | None] = mapped_column()
-    steps: Mapped[int | None] = mapped_column()
+    avg_heart_rate: Mapped[int | None] = mapped_column(Integer)
+    max_heart_rate: Mapped[int | None] = mapped_column(Integer)
+    steps: Mapped[int | None] = mapped_column(Integer)
     date: Mapped[str] = mapped_column(String, nullable=False)
     source: Mapped[str | None] = mapped_column(String)
     raw_data: Mapped[str | None] = mapped_column(Text)

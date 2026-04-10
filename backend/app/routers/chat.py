@@ -23,10 +23,22 @@ def _now() -> str:
 async def _build_system_prompt(db: AsyncSession) -> str:
     today = date.today().isoformat()
 
-    tasks = await summary_service._get_tasks_for_date(db, today)
-    habits = await summary_service._get_habits_for_date(db, today)
-    health = await summary_service._get_health_for_date(db, today)
-    screen = await summary_service._get_screen_time_for_date(db, today)
+    try:
+        tasks = await summary_service._get_tasks_for_date(db, today)
+    except Exception:
+        tasks = []
+    try:
+        habits = await summary_service._get_habits_for_date(db, today)
+    except Exception:
+        habits = []
+    try:
+        health = await summary_service._get_health_for_date(db, today)
+    except Exception:
+        health = {}
+    try:
+        screen = await summary_service._get_screen_time_for_date(db, today)
+    except Exception:
+        screen = {"total_hours": 0, "top_apps": []}
 
     # 7-day averages
     seven_days_ago = (date.today() - timedelta(days=7)).isoformat()
@@ -77,7 +89,7 @@ HEALTH:
 {summary_service._format_health(health)}
 
 SCREEN TIME TODAY:
-Total: {screen['total_hours']}h | Top apps: {', '.join(f"{a['name']} ({int(a['minutes'])}m)" for a in screen['top_apps']) or 'none'}
+Total: {screen.get('total_hours', 0)}h | Top apps: {', '.join(f"{a['name']} ({int(a.get('minutes', 0))}m)" for a in screen.get('top_apps', [])) or 'none'}
 
 LAST 7 DAYS (averages):
 {seven_day_summary}"""

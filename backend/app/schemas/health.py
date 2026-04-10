@@ -20,6 +20,7 @@ class HealthMetricResponse(BaseModel):
     recorded_at: str
     date: str
     source: str
+    raw_data: str | None
     synced_at: str
 
     model_config = {"from_attributes": True}

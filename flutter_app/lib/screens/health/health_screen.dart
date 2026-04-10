@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
-import '../../services/health_service.dart';
 import '../../services/sync_service.dart';
 
 final _healthSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) async {
@@ -23,16 +22,8 @@ class _HealthScreenState extends ConsumerState<HealthScreen> {
   Future<void> _requestAndSync() async {
     setState(() { _syncing = true; _syncMessage = null; });
     try {
-      final hasPerms = await HealthService().hasPermissions();
-      if (!hasPerms) {
-        final granted = await HealthService().requestPermissions();
-        if (!granted) {
-          setState(() { _syncing = false; _syncMessage = 'Permission denied. Grant in Settings > Health Connect.'; });
-          return;
-        }
-      }
       final result = await SyncService().syncAll();
-      setState(() { _syncMessage = result.hasError ? 'Sync error: ${result.error}' : 'Synced ${result.healthMetrics} health records'; });
+      setState(() { _syncMessage = result.hasError ? 'Sync error: ${result.error}' : 'Health data refreshed from Zepp cloud'; });
       ref.invalidate(_healthSummaryProvider);
     } finally {
       setState(() => _syncing = false);
@@ -93,7 +84,7 @@ class _HealthScreenState extends ConsumerState<HealthScreen> {
             ],
             const SizedBox(height: 8),
             const Text(
-              'Data sourced from Amazfit Heliostrap via Zepp → Health Connect',
+              'Data sourced from Amazfit Heliostrap via Zepp cloud sync',
               style: TextStyle(color: Colors.grey, fontSize: 11),
               textAlign: TextAlign.center,
             ),
@@ -108,7 +99,7 @@ class _HealthScreenState extends ConsumerState<HealthScreen> {
               const SizedBox(height: 12),
               FilledButton.icon(
                 icon: const Icon(Icons.sync),
-                label: const Text('Sync from Health Connect'),
+                label: const Text('Retry'),
                 onPressed: _requestAndSync,
               ),
             ],

@@ -63,7 +63,8 @@ async def _run_monthly_recap():
 
 async def _run_zepp_sync():
     if not settings.zepp_email or not settings.zepp_password:
-        return  # not configured, skip silently
+        logger.error("Zepp sync skipped — ZEPP_EMAIL or ZEPP_PASSWORD not set in .env")
+        return
     logger.info("Running Zepp health sync")
     async with AsyncSessionLocal() as db:
         try:
@@ -85,18 +86,24 @@ async def _run_reminder_check():
             token_setting = await db.get(AppSetting, "fcm_device_token")
             token = token_setting.value if token_setting else None
 
+            sent = 0
             for reminder in due:
-                await send_push(
-                    reminder.title,
-                    reminder.body or "",
-                    token,
-                    {"type": "reminder", "id": reminder.id},
-                )
-                reminder.status = "sent"
-                reminder.sent_at = datetime.now(timezone.utc).isoformat()
+                try:
+                    await send_push(
+                        reminder.title,
+                        reminder.body or "",
+                        token,
+                        {"type": "reminder", "id": reminder.id},
+                    )
+                    reminder.status = "sent"
+                    reminder.sent_at = datetime.now(timezone.utc).isoformat()
+                    sent += 1
+                except Exception:
+                    logger.exception(f"Failed to send reminder {reminder.id}")
+                    reminder.status = "failed"
 
             await db.commit()
-            logger.info(f"Sent {len(due)} reminder(s)")
+            logger.info(f"Sent {sent}/{len(due)} reminder(s)")
         except Exception:
             logger.exception("Failed to process reminders")
 

@@ -48,7 +48,13 @@ async def _authenticate() -> tuple[str, str]:
     if not email or not password:
         raise RuntimeError("ZEPP_EMAIL and ZEPP_PASSWORD must be configured in backend/.env")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    _app_headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; Pixel 3) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/92.0.4515.131 Mobile Safari/537.36",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+
+    async with httpx.AsyncClient(timeout=30.0, headers=_app_headers) as client:
         # ---- Stage 1: email → redirect with access token ----
         auth_url = f"https://api-user.huami.com/registrations/{urllib.parse.quote(email)}/tokens"
         r1 = await client.post(
@@ -62,6 +68,12 @@ async def _authenticate() -> tuple[str, str]:
             },
             follow_redirects=False,
         )
+
+        if r1.status_code == 429:
+            raise RuntimeError(
+                "Zepp API rate-limited (429). Wait a few minutes and try again. "
+                "In production the sync runs every 4h which avoids this."
+            )
 
         location = r1.headers.get("Location", "")
         qs = urllib.parse.parse_qs(urllib.parse.urlparse(location).query)

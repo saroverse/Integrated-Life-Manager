@@ -25,83 +25,35 @@ class HealthService {
   ];
 
   /// Request all required Health Connect permissions.
+  /// Health Connect does not work with sideloaded APKs — returns false gracefully.
   Future<bool> requestPermissions() async {
-    final permissions = _types.map((_) => HealthDataAccess.READ).toList();
-    return _health.requestAuthorization(_types, permissions: permissions);
+    try {
+      final permissions = _types.map((_) => HealthDataAccess.READ).toList();
+      return await _health.requestAuthorization(_types, permissions: permissions);
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Check if permissions are already granted.
   Future<bool> hasPermissions() async {
-    return await _health.hasPermissions(_types) ?? false;
+    try {
+      return await _health.hasPermissions(_types) ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
-  /// Read all health data from [startTime] to [endTime].
-  /// Returns a payload suitable for POST /health/sync.
+  /// Health Connect is disabled in V2 — health data comes from Zepp cloud via backend.
+  /// Returns empty payload so callers don't break.
   Future<Map<String, dynamic>> readHealthData({
     required DateTime startTime,
     required DateTime endTime,
   }) async {
-    final points = await _health.getHealthDataFromTypes(
-      startTime: startTime,
-      endTime: endTime,
-      types: _types,
-    );
-
-    final metrics = <Map<String, dynamic>>[];
-    final sleepSessions = <Map<String, dynamic>>[];
-    final workouts = <Map<String, dynamic>>[];
-
-    final fmt = DateFormat('yyyy-MM-dd');
-    final isoFmt = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
-
-    for (final point in points) {
-      final date = fmt.format(point.dateFrom);
-      final id = '${point.type.name}_${point.dateFrom.millisecondsSinceEpoch}';
-
-      if (point.type == HealthDataType.SLEEP_SESSION) {
-        sleepSessions.add({
-          'id': id,
-          'date': fmt.format(point.dateTo), // date of wake-up
-          'bedtime': isoFmt.format(point.dateFrom),
-          'wake_time': isoFmt.format(point.dateTo),
-          'total_duration': point.dateTo.difference(point.dateFrom).inMinutes / 60.0,
-          'source': 'health_connect',
-        });
-        continue;
-      }
-
-      if (point.type == HealthDataType.WORKOUT) {
-        final val = point.value as WorkoutHealthValue?;
-        workouts.add({
-          'id': id,
-          'workout_type': val?.workoutActivityType.name ?? 'unknown',
-          'start_time': isoFmt.format(point.dateFrom),
-          'end_time': isoFmt.format(point.dateTo),
-          'duration': point.dateTo.difference(point.dateFrom).inMinutes.toDouble(),
-          'date': date,
-          'source': 'health_connect',
-        });
-        continue;
-      }
-
-      final numericValue = _extractNumericValue(point.value);
-      if (numericValue == null) continue;
-
-      metrics.add({
-        'id': id,
-        'metric_type': _metricTypeName(point.type),
-        'value': numericValue,
-        'unit': _metricUnit(point.type),
-        'recorded_at': isoFmt.format(point.dateFrom),
-        'date': date,
-        'source': 'health_connect',
-      });
-    }
-
     return {
-      'metrics': metrics,
-      'sleep_sessions': sleepSessions,
-      'workouts': workouts,
+      'metrics': <Map<String, dynamic>>[],
+      'sleep_sessions': <Map<String, dynamic>>[],
+      'workouts': <Map<String, dynamic>>[],
     };
   }
 

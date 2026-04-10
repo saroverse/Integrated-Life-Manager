@@ -12,6 +12,7 @@ class SummaryResponse(BaseModel):
     period_start: str
     period_end: str
     content: str
+    context_data: str | None
     model_used: str | None
     generation_time: float | None
     status: str

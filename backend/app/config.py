@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     chat_ai_url: str = "http://localhost:11434"
     chat_model: str = "mistral:7b-instruct"
     claude_api_key: str = ""
+    claude_model: str = "claude-haiku-4-5-20251001"
     firebase_credentials_path: str = "./firebase-service-account.json"
     device_api_token: str = "change-this-to-a-random-secret"
     timezone: str = "Europe/Berlin"
@@ -20,6 +21,8 @@ class Settings(BaseSettings):
     zepp_password: str = ""
     openclaw_url: str = "http://localhost:18789"
     openclaw_gateway_token: str = ""
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.1-8b-instant"
 
 
 settings = Settings()

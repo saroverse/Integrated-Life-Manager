@@ -20,6 +20,7 @@ flutter_app/dart_defines.json
 flutter_app/build/
 flutter_app/.flutter-plugins
 flutter_app/.flutter-plugins-dependencies
+flutter_app/android/app/google-services.json
 
 # ── macOS ─────────────────────────────────────────────────────────────────────
 .DS_Store

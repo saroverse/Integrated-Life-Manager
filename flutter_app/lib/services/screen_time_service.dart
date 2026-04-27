@@ -42,17 +42,20 @@ class ScreenTimeService {
           .where((u) =>
               u.usage.inSeconds >= AppConstants.minUsageSeconds &&
               !AppConstants.excludedPackages.contains(u.packageName))
-          .map((u) => {
-                'id': '${u.packageName}_$dateStr',
-                'date': dateStr,
-                'app_package': u.packageName,
-                'app_name': _cleanAppName(u.appName, u.packageName),
-                'app_category': _categorize(u.packageName),
-                'duration_seconds': u.usage.inSeconds,
-                'launch_count': 0,
-                'first_used': isoFmt.format(start),
-                'last_used': isoFmt.format(end),
-              })
+          .map((u) {
+            final capped = u.usage.inSeconds.clamp(0, AppConstants.maxUsageSecondsPerApp);
+            return {
+              'id': '${u.packageName}_$dateStr',
+              'date': dateStr,
+              'app_package': u.packageName,
+              'app_name': _cleanAppName(u.appName, u.packageName),
+              'app_category': _categorize(u.packageName),
+              'duration_seconds': capped,
+              'launch_count': 0,
+              'first_used': isoFmt.format(start),
+              'last_used': isoFmt.format(end),
+            };
+          })
           .toList();
     } catch (e) {
       // UsageStatsManager permission not granted or error

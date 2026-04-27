@@ -152,40 +152,43 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
                     metrics_saved += 1
 
             # ---- Resting heart rate ----
-            rhr = (
-                summary.get("rhr")
-                or summary.get("RestingHeartRate")
-                or summary.get("hr", {}).get("rhr")
-            )
-            if rhr and int(rhr) > 0:
-                rhr_id = f"zepp_rhr_{date_str}"
-                existing = await db.get(HealthMetric, rhr_id)
-                if existing:
-                    existing.value = float(rhr)
-                    existing.synced_at = synced_at
-                else:
-                    db.add(HealthMetric(
-                        id=rhr_id,
-                        metric_type="resting_heart_rate",
-                        value=float(rhr),
-                        unit="bpm",
-                        recorded_at=f"{date_str}T12:00:00",
-                        date=date_str,
-                        source="zepp_cloud",
-                        synced_at=synced_at,
-                    ))
-                    metrics_saved += 1
-
             # ---- Sleep ----
             slp = summary.get("slp", {})
             if slp:
                 st = slp.get("st")
                 ed = slp.get("ed")
                 dp = slp.get("dp", 0) or 0
-                rm = slp.get("rm", 0) or slp.get("wk2", 0) or 0
                 lt = slp.get("lt", 0) or 0
                 wk = slp.get("wk", 0) or 0
-                sc = slp.get("sc")
+                sc = slp.get("ss")  # sleep score is "ss" in the actual API response
+
+                # RHR lives inside slp, not at top level
+                rhr = slp.get("rhr") or summary.get("rhr") or summary.get("hr", {}).get("rhr")
+                if rhr and int(rhr) > 0:
+                    rhr_id = f"zepp_rhr_{date_str}"
+                    existing = await db.get(HealthMetric, rhr_id)
+                    if existing:
+                        existing.value = float(rhr)
+                        existing.synced_at = synced_at
+                    else:
+                        db.add(HealthMetric(
+                            id=rhr_id,
+                            metric_type="resting_heart_rate",
+                            value=float(rhr),
+                            unit="bpm",
+                            recorded_at=f"{date_str}T12:00:00",
+                            date=date_str,
+                            source="zepp_cloud",
+                            synced_at=synced_at,
+                        ))
+                        metrics_saved += 1
+
+                # REM is not a summary field — compute from stage list (mode 8 = REM)
+                stages = slp.get("stage", [])
+                rem_minutes = sum(
+                    (s.get("stop", 0) - s.get("start", 0))
+                    for s in stages if s.get("mode") == 8
+                )
 
                 if st and ed and ed > st:
                     bedtime = datetime.fromtimestamp(st, tz=timezone.utc).isoformat()
@@ -199,7 +202,7 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
                         existing.wake_time = wake_time
                         existing.total_duration = round(total_h, 2)
                         existing.deep_sleep = _mins_to_hours(dp)
-                        existing.rem_sleep = _mins_to_hours(rm)
+                        existing.rem_sleep = _mins_to_hours(rem_minutes)
                         existing.light_sleep = _mins_to_hours(lt)
                         existing.awake_time = _mins_to_hours(wk)
                         existing.sleep_score = sc
@@ -212,7 +215,7 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
                             wake_time=wake_time,
                             total_duration=round(total_h, 2),
                             deep_sleep=_mins_to_hours(dp),
-                            rem_sleep=_mins_to_hours(rm),
+                            rem_sleep=_mins_to_hours(rem_minutes),
                             light_sleep=_mins_to_hours(lt),
                             awake_time=_mins_to_hours(wk),
                             sleep_score=sc,

@@ -74,9 +74,30 @@ class AppConstants {
     'com.google.android.packageinstaller',
     'com.google.android.apps.tachyon',    // Google Meet (background)
     'com.google.android.projection.gearhead', // Android Auto
+
+    // Android system packages that accumulate silently
+    'com.android.certinstaller',
+    'com.android.chrome',                 // exclude if you track sbrowser separately — remove if Chrome is primary
+    'com.android.phone',
+    'com.android.server.telecom',
+
+    // Health / wearable companion apps (not real screen time)
+    'com.huami.watch.hmwatchmanager',     // Amazfit/Zepp watch manager
+    'com.xiaomi.hm.health',              // Zepp / Mi Health
+    'com.zepp.international',
+    'com.huami.midong',
+
+    // Developer / debug tools
+    'tech.httptoolkit.android.v1',        // HTTP Toolkit
+    'tech.httptoolkit.android',
   };
 
-  // Minimum usage to report — filters out brief system interactions (<30 s).
-  // Digital Wellbeing only shows apps used meaningfully.
-  static const int minUsageSeconds = 30;
+  // Minimum usage to report — filters out brief interactions.
+  // Digital Wellbeing uses ~1 minute as its threshold.
+  static const int minUsageSeconds = 60;
+
+  // Hard cap per app per day — anything above this is almost certainly a
+  // UsageStatsManager reporting bug (cumulative bleed or background audio).
+  // 6 hours is a reasonable ceiling for a single app in a day.
+  static const int maxUsageSecondsPerApp = 6 * 3600;
 }

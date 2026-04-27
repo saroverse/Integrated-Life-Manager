@@ -84,7 +84,7 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
         }
 
         r = await client.get(
-            "https://api-mifit.huami.com/v1/data/band_data.json",
+            "https://api-mifit-de2.zepp.com/v1/data/band_data.json",
             headers=headers,
             params={
                 "query_type": "summary",
@@ -103,16 +103,20 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
 
         r.raise_for_status()
         resp_body = r.json()
-        logger.debug(f"Zepp raw response: {resp_body}")
+        logger.debug(f"Zepp raw response keys: {list(resp_body.keys())}")
 
-        summaries = resp_body.get("data", {}).get("summary", [])
-        if not summaries:
-            logger.info(f"Zepp returned no summary data for {from_date}–{to_date}")
+        # API returns: {"code": 1, "data": [...list of daily entries...]}
+        # Each entry has "date_time" (YYYY-MM-DD) and "summary" (base64 JSON)
+        data = resp_body.get("data", [])
+        if not isinstance(data, list):
+            data = []
+        if not data:
+            logger.info(f"Zepp returned no data for {from_date}–{to_date}")
             return {"metrics_saved": 0, "sleep_saved": 0, "from": from_date, "to": to_date}
 
-        for entry in summaries:
-            # Date may come as "YYYYMMDD" or "YYYY-MM-DD"
-            raw_date = str(entry.get("date", ""))
+        for entry in data:
+            raw_date = str(entry.get("date_time", ""))
+            # date_time comes as "YYYY-MM-DD"; legacy format "YYYYMMDD" handled too
             if len(raw_date) == 8 and "-" not in raw_date:
                 date_str = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
             else:

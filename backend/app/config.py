@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     zepp_email: str = ""
     zepp_password: str = ""
+    zepp_app_token: str = ""
+    zepp_user_id: str = ""
     openclaw_url: str = "http://localhost:18789"
     openclaw_gateway_token: str = ""
     groq_api_key: str = ""

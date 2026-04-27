@@ -1,20 +1,29 @@
 """Zepp/Huami cloud API integration.
 
-Authenticates with Zepp's servers using the unofficial Huami API and fetches
-health data (steps, sleep, resting heart rate) for storage in the local DB.
+V2: Uses a static app_token + user_id extracted from the Zepp app (via mitmproxy).
+This bypasses the broken/rate-limited login endpoint entirely.
 
-This bypasses Health Connect entirely — data flows:
+Data flow:
   Amazfit watch → Zepp cloud → this service (runs on Mac Mini) → SQLite
 
-Requires ZEPP_EMAIL and ZEPP_PASSWORD in backend/.env
+Setup:
+  1. Set ZEPP_APP_TOKEN and ZEPP_USER_ID in backend/.env
+     (extract with mitmproxy — see docs below)
+  2. Token lasts ~90 days; refresh by re-extracting when expired
+
+Extraction steps:
+  1. pip install mitmproxy && mitmproxy --listen-port 8080
+  2. Set phone WiFi proxy → Mac-IP:8080
+  3. Visit mitm.it on phone, install certificate
+  4. Open Zepp app, navigate to health/steps screen
+  5. Find request to api-mifit.huami.com in mitmproxy
+  6. Copy 'apptoken' header value → ZEPP_APP_TOKEN
+  7. Copy 'userid' query param → ZEPP_USER_ID
 """
 
 import base64
 import json
 import logging
-import time
-import urllib.parse
-import uuid
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
@@ -25,102 +34,11 @@ from app.models.health import HealthMetric, SleepSession
 
 logger = logging.getLogger(__name__)
 
-# Token cache — in-memory only; re-auth happens automatically on restart (takes ~1 s)
-_cached_token: str | None = None
-_cached_user_id: str | None = None
-_token_expiry: float = 0
 
-
-def _device_id() -> str:
-    """Stable pseudo-device-ID derived from email (UUID3)."""
-    return str(uuid.uuid3(uuid.NAMESPACE_DNS, settings.zepp_email or "ilm-default"))
-
-
-async def _authenticate() -> tuple[str, str]:
-    """Authenticate with Zepp and return (app_token, user_id). Cached for 23 h."""
-    global _cached_token, _cached_user_id, _token_expiry
-
-    if _cached_token and time.time() < _token_expiry:
-        return _cached_token, _cached_user_id  # type: ignore[return-value]
-
-    email = settings.zepp_email
-    password = settings.zepp_password
-    if not email or not password:
-        raise RuntimeError("ZEPP_EMAIL and ZEPP_PASSWORD must be configured in backend/.env")
-
-    _app_headers = {
-        "User-Agent": "Mozilla/5.0 (Linux; Android 10; Pixel 3) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/92.0.4515.131 Mobile Safari/537.36",
-        "Content-Type": "application/x-www-form-urlencoded",
-    }
-
-    async with httpx.AsyncClient(timeout=30.0, headers=_app_headers) as client:
-        # ---- Stage 1: email → redirect with access token ----
-        auth_url = f"https://api-user.huami.com/registrations/{urllib.parse.quote(email)}/tokens"
-        r1 = await client.post(
-            auth_url,
-            data={
-                "state": "REDIRECTION",
-                "client_id": "HuaMi",
-                "redirect_uri": "https://s3-us-west-2.amazonws.com/hm-registration/successsignin.html",
-                "token": "access",
-                "password": password,
-            },
-            follow_redirects=False,
-        )
-
-        if r1.status_code == 429:
-            raise RuntimeError(
-                "Zepp API rate-limited (429). Wait a few minutes and try again. "
-                "In production the sync runs every 4h which avoids this."
-            )
-
-        location = r1.headers.get("Location", "")
-        qs = urllib.parse.parse_qs(urllib.parse.urlparse(location).query)
-        access_token = (qs.get("access") or qs.get("token") or [None])[0]
-
-        if not access_token:
-            raise RuntimeError(
-                f"Zepp auth stage 1 failed — no access token in redirect.\n"
-                f"Status: {r1.status_code}  Location: {location!r}\n"
-                "Check your ZEPP_EMAIL / ZEPP_PASSWORD in .env"
-            )
-
-        # ---- Stage 2: access token → app_token + user_id ----
-        r2 = await client.post(
-            "https://account.huami.com/v2/client/login",
-            data={
-                "dn": (
-                    "account.huami.com,api-user.huami.com,api-watch.huami.com,"
-                    "api-analytics.huami.com,api-mifit.huami.com,"
-                    "api-platform-routing.huami.com"
-                ),
-                "app_version": "6.3.0-play",
-                "source": "com.huami.midong",
-                "country_code": "DE",
-                "device_id": _device_id(),
-                "third_name": "huami-zepp",
-                "grant_type": "access_token",
-                "code": access_token,
-                "app_name": "com.huami.midong",
-                "allow_registration": "false",
-            },
-        )
-        r2.raise_for_status()
-        body = r2.json()
-
-        token_info = body.get("token_info", {})
-        app_token = token_info.get("app_token")
-        user_id = token_info.get("user_id")
-
-        if not app_token or not user_id:
-            raise RuntimeError(f"Zepp auth stage 2 failed — response: {body}")
-
-    _cached_token = app_token
-    _cached_user_id = user_id
-    _token_expiry = time.time() + 23 * 3600
-    logger.info(f"Zepp authenticated, user_id={user_id}")
-    return app_token, user_id
+def _mins_to_hours(minutes: int | float | None) -> float | None:
+    if not minutes:
+        return None
+    return round(minutes / 60.0, 2)
 
 
 def _decode_summary(b64: str) -> dict:
@@ -133,18 +51,21 @@ def _decode_summary(b64: str) -> dict:
         return {}
 
 
-def _mins_to_hours(minutes: int | float | None) -> float | None:
-    if not minutes:
-        return None
-    return round(minutes / 60.0, 2)
-
-
 async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
     """
     Pull health data from Zepp cloud for the last `days_back` days and upsert
     into the local DB.  Returns {"metrics_saved": N, "sleep_saved": N, ...}.
+
+    Requires ZEPP_APP_TOKEN and ZEPP_USER_ID in backend/.env
     """
-    app_token, user_id = await _authenticate()
+    app_token = settings.zepp_app_token
+    user_id = settings.zepp_user_id
+
+    if not app_token or not user_id:
+        raise RuntimeError(
+            "ZEPP_APP_TOKEN and ZEPP_USER_ID must be set in backend/.env.\n"
+            "Extract them from the Zepp app using mitmproxy (see zepp_service.py docs)."
+        )
 
     today = date.today()
     from_date = (today - timedelta(days=days_back)).isoformat()
@@ -155,7 +76,12 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
     synced_at = datetime.now(timezone.utc).isoformat()
 
     async with httpx.AsyncClient(timeout=30.0) as client:
-        headers = {"apptoken": app_token}
+        headers = {
+            "apptoken": app_token,
+            "appPlatform": "android",
+            "appname": "com.huami.midong",
+            "appVersion": "6.3.0",
+        }
 
         r = await client.get(
             "https://api-mifit.huami.com/v1/data/band_data.json",
@@ -168,9 +94,15 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
                 "to_date": to_date,
             },
         )
+
+        if r.status_code == 401:
+            raise RuntimeError(
+                "Zepp token expired or invalid (401). "
+                "Re-extract ZEPP_APP_TOKEN and ZEPP_USER_ID from the Zepp app using mitmproxy."
+            )
+
         r.raise_for_status()
         resp_body = r.json()
-
         logger.debug(f"Zepp raw response: {resp_body}")
 
         summaries = resp_body.get("data", {}).get("summary", [])
@@ -193,7 +125,6 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
 
             # ---- Steps ----
             stp = summary.get("stp", {})
-            # Field name varies: ttl / total / stp (flat)
             steps = stp.get("ttl") or stp.get("total") or stp.get("steps")
             if not steps and isinstance(summary.get("stp"), (int, float)):
                 steps = summary["stp"]
@@ -216,7 +147,7 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
                     ))
                     metrics_saved += 1
 
-            # ---- Resting heart rate (sometimes present in summary) ----
+            # ---- Resting heart rate ----
             rhr = (
                 summary.get("rhr")
                 or summary.get("RestingHeartRate")
@@ -244,13 +175,13 @@ async def fetch_and_store(db: AsyncSession, days_back: int = 3) -> dict:
             # ---- Sleep ----
             slp = summary.get("slp", {})
             if slp:
-                st = slp.get("st")   # bedtime unix timestamp (seconds)
-                ed = slp.get("ed")   # wake time unix timestamp (seconds)
-                dp = slp.get("dp", 0) or 0   # deep sleep (minutes)
-                rm = slp.get("rm", 0) or slp.get("wk2", 0) or 0  # REM (minutes, field varies)
-                lt = slp.get("lt", 0) or 0   # light sleep (minutes)
-                wk = slp.get("wk", 0) or 0   # awake (minutes)
-                sc = slp.get("sc")           # sleep score
+                st = slp.get("st")
+                ed = slp.get("ed")
+                dp = slp.get("dp", 0) or 0
+                rm = slp.get("rm", 0) or slp.get("wk2", 0) or 0
+                lt = slp.get("lt", 0) or 0
+                wk = slp.get("wk", 0) or 0
+                sc = slp.get("sc")
 
                 if st and ed and ed > st:
                     bedtime = datetime.fromtimestamp(st, tz=timezone.utc).isoformat()

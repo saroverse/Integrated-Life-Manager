@@ -52,6 +52,9 @@ dependencies:
   # UUID generation (chat session IDs)
   uuid: ^4.4.0
 
+  # Voice input (uses Android's built-in speech recognizer — no extra cost)
+  speech_to_text: ^7.0.0
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

@@ -21,6 +21,9 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Microphone (speech-to-text) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- Background sync -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

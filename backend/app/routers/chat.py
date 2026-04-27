@@ -1,7 +1,9 @@
+import json
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +13,7 @@ from app.models.habit import Habit, HabitLog
 from app.models.health import HealthMetric, SleepSession
 from app.schemas.chat import ChatHistoryResponse, ChatMessageRequest, ChatMessageResponse
 from app.services import summary_service
-from app.services.ai_service import generate_chat
+from app.services.ai_service import generate_chat, generate_text
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -168,3 +170,50 @@ async def get_history(
 async def clear_history(session_id: str, db: AsyncSession = Depends(get_db)):
     await db.execute(delete(ChatMessage).where(ChatMessage.session_id == session_id))
     await db.commit()
+
+
+# ── NLP command parsing ───────────────────────────────────────────────────────
+
+class CommandRequest(BaseModel):
+    text: str
+
+
+_NLP_SYSTEM = """You are a command parser for a personal life manager app.
+Parse the user's natural language input and return ONLY a JSON object — no explanation, no markdown.
+
+Supported actions and their JSON shapes:
+  {"action":"add_list_item","list_name":"shopping","item":"eggs"}
+  {"action":"add_list_item","list_name":"watchlist","item":"Dune Part Two"}
+  {"action":"add_list_item","list_name":"birthday","item":"AirPods"}
+  {"action":"add_task","title":"Call dentist","due_date":"2025-05-01","due_time":"09:00","priority":"medium"}
+  {"action":"add_event","title":"Meeting","date":"2025-05-01","start_time":"16:00","end_time":"17:00"}
+  {"action":"log_habit","name":"meditation"}
+  {"action":"log_habit","name":"reading"}
+  {"action":"add_reminder","title":"Call mom","remind_at":"2025-05-01T18:00:00"}
+  {"action":"unknown","original":"<original text>"}
+
+Rules:
+- Resolve relative dates (today, tomorrow, next Monday) to ISO format YYYY-MM-DD using today's date.
+- For list items: map to the closest known list name. Common mappings: shopping list → "shopping", watch/movie list → "watchlist", birthday/Christmas/gift list → "birthday" or "christmas", packing list → "packing".
+- If the list doesn't match any known type, use the literal words as list_name.
+- Times must be HH:MM (24h).
+- priority: low / medium / high — default medium.
+- If you cannot parse the intent, return the "unknown" action.
+- Return ONLY the JSON. No extra text."""
+
+
+@router.post("/command")
+async def parse_command(data: CommandRequest):
+    """Parse a natural language command into a structured action."""
+    today = date.today().isoformat()
+    prompt = f"Today is {today}.\nUser said: {data.text}"
+    try:
+        raw, _ = await generate_text(prompt, _NLP_SYSTEM)
+        # Strip markdown code fences if model wraps the JSON
+        cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError:
+        parsed = {"action": "unknown", "original": data.text, "raw": raw}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Command parsing failed: {e}")
+    return parsed

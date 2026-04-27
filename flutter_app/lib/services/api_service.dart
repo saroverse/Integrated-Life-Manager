@@ -527,4 +527,93 @@ class ApiService {
     await _dio.delete('/chat/history',
         queryParameters: {'session_id': sessionId});
   }
+
+  Future<Map<String, dynamic>> parseCommand(String text) async {
+    final r = await _dio.post('/chat/command', data: {'text': text});
+    return r.data as Map<String, dynamic>;
+  }
+
+  // ── Lists ──────────────────────────────────────────────────────────────────
+
+  Future<List<dynamic>> getLists() async {
+    try {
+      final r = await _dio.get('/lists');
+      await LocalCache.saveResponse('lists', r.data);
+      return r.data as List;
+    } catch (e) {
+      if (_isOffline(e)) {
+        final cached = LocalCache.getResponse('lists');
+        if (cached != null) return cached as List;
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> createList(Map<String, dynamic> data) async {
+    final r = await _dio.post('/lists', data: data);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<void> deleteList(String id) async {
+    await _dio.delete('/lists/$id');
+  }
+
+  Future<List<dynamic>> getListItems(String listId) async {
+    try {
+      final r = await _dio.get('/lists/$listId/items');
+      await LocalCache.saveResponse('list_items_$listId', r.data);
+      return r.data as List;
+    } catch (e) {
+      if (_isOffline(e)) {
+        final cached = LocalCache.getResponse('list_items_$listId');
+        if (cached != null) return cached as List;
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> addListItem(
+      String listId, String text) async {
+    try {
+      final r = await _dio.post('/lists/$listId/items', data: {'text': text});
+      return r.data as Map<String, dynamic>;
+    } catch (e) {
+      if (_isOffline(e)) {
+        await LocalCache.enqueue('POST', '/lists/$listId/items',
+            body: {'text': text});
+        return {'id': 'pending_${DateTime.now().millisecondsSinceEpoch}', 'text': text, 'checked': false, '_pending': true};
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> updateListItem(
+      String listId, String itemId, Map<String, dynamic> data) async {
+    try {
+      final r = await _dio.put('/lists/$listId/items/$itemId', data: data);
+      return r.data as Map<String, dynamic>;
+    } catch (e) {
+      if (_isOffline(e)) {
+        await LocalCache.enqueue('PUT', '/lists/$listId/items/$itemId', body: data);
+        return {'_pending': true};
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> deleteListItem(String listId, String itemId) async {
+    try {
+      await _dio.delete('/lists/$listId/items/$itemId');
+    } catch (e) {
+      if (_isOffline(e)) {
+        await LocalCache.enqueue('DELETE', '/lists/$listId/items/$itemId');
+        return;
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> clearCheckedItems(String listId) async {
+    await _dio.delete('/lists/$listId/items/checked/all');
+  }
 }

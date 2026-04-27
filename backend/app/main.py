@@ -16,6 +16,7 @@ from app.routers import (
     habits,
     health,
     journal,
+    lists,
     planner,
     reminders,
     screen_time,
@@ -78,6 +79,7 @@ app.include_router(journal.router, prefix=PREFIX)
 app.include_router(summaries.router, prefix=PREFIX)
 app.include_router(dashboard.router, prefix=PREFIX)
 app.include_router(reminders.router, prefix=PREFIX)
+app.include_router(lists.router, prefix=PREFIX)
 
 
 @app.get("/health")

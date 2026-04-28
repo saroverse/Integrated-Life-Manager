@@ -6,6 +6,7 @@ backend/venv/
 backend/.env
 backend/ilm.db
 backend/firebase-service-account.json
+backend/*firebase-adminsdk*.json
 .zepp_token_cache.json
 
 # ── Web dashboard ─────────────────────────────────────────────────────────────
@@ -21,6 +22,8 @@ flutter_app/build/
 flutter_app/.flutter-plugins
 flutter_app/.flutter-plugins-dependencies
 flutter_app/android/app/google-services.json
+flutter_app/android/app/local.properties
+flutter_app/android/local.properties
 
 # ── macOS ─────────────────────────────────────────────────────────────────────
 .DS_Store

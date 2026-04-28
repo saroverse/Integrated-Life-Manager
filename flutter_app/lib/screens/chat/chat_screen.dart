@@ -5,6 +5,9 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../models/chat_message.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/dashboard_provider.dart';
+import '../../providers/habit_provider.dart';
+import '../../providers/planner_provider.dart';
 import '../../services/api_service.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -69,8 +72,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (text.isEmpty) return;
     _controller.clear();
     _scrollToBottom();
-    await ref.read(chatProvider.notifier).sendMessage(text);
+    final actions = await ref.read(chatProvider.notifier).sendMessage(text);
     _scrollToBottom();
+    if (actions.isNotEmpty && mounted) {
+      _onActionsPerformed(actions);
+    }
+  }
+
+  void _onActionsPerformed(List<String> actions) {
+    // Invalidate shared providers so other screens refresh on next visit.
+    ref.invalidate(habitsTodayProvider);
+    ref.invalidate(habitsStatsProvider(30));
+    ref.invalidate(tasksTodayProvider);
+    ref.invalidate(dashboardTodayProvider);
+    ref.invalidate(plannerDayProvider(DateTime.now().toIso8601String().substring(0, 10)));
+    ref.invalidate(plannerWeekProvider(DateTime.now().toIso8601String().substring(0, 10)));
+
+    // Show a brief confirmation banner.
+    setState(() => _commandFeedback = actions.first);
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _commandFeedback = null);
+    });
   }
 
   // ── Voice ──────────────────────────────────────────────────────────────────
@@ -112,11 +134,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
 
       final feedback = await _executeCommand(result);
-      if (mounted) setState(() => _commandFeedback = feedback);
-      // Auto-dismiss feedback after 3 seconds
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) setState(() => _commandFeedback = null);
-      });
+      if (mounted) {
+        _onActionsPerformed([feedback]);
+      }
     } catch (e) {
       if (mounted) setState(() => _commandFeedback = 'Error: $e');
     }

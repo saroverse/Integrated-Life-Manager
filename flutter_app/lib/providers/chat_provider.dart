@@ -58,8 +58,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  Future<void> sendMessage(String text) async {
-    if (text.trim().isEmpty) return;
+  /// Sends a message and returns the list of actions the AI performed (if any).
+  Future<List<String>> sendMessage(String text) async {
+    if (text.trim().isEmpty) return [];
     final sessionId = await _getSessionId();
 
     // Optimistic UI: add user message immediately
@@ -78,15 +79,22 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     try {
-      await ApiService().sendChatMessage(message: text.trim(), sessionId: sessionId);
+      final response = await ApiService().sendChatMessage(
+          message: text.trim(), sessionId: sessionId);
       // Reload full history to get confirmed IDs and assistant response
       await loadHistory();
+      final actions = (response['actions_taken'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [];
+      return actions;
     } catch (e) {
       state = state.copyWith(
         messages: state.messages.where((m) => m.id != tempId).toList(),
         isLoading: false,
         error: 'Failed to send message. Is the backend running?',
       );
+      return [];
     }
   }
 

@@ -13,6 +13,7 @@ class ChatMessageResponse(BaseModel):
     content: str
     model_used: str | None
     timestamp: str
+    actions_taken: list[str] = []
 
     model_config = {"from_attributes": True}
 

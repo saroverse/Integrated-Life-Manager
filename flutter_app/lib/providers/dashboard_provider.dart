@@ -8,3 +8,7 @@ final dashboardTodayProvider = FutureProvider<Map<String, dynamic>>((ref) async 
 final latestBriefingProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   return ApiService().getLatestSummary('daily_briefing');
 });
+
+final tasksTodayProvider = FutureProvider<List<dynamic>>((ref) async {
+  return ApiService().getTasksToday();
+});

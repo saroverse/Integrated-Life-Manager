@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
@@ -22,6 +23,7 @@ class HabitLogNotifier extends Notifier<void> {
   void build() {}
 
   Future<void> toggle(String habitId, bool completed) async {
+    if (completed) HapticFeedback.lightImpact();
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     await ApiService().logHabit(habitId, {
       'date': today,

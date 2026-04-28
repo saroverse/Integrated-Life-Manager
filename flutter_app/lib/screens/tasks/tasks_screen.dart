@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/api_service.dart';
 
@@ -27,6 +28,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddTaskSheet(context),
+        backgroundColor: const Color(0xFF4F6EF7),
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -37,33 +39,61 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                _FilterChip('All', null, _filterStatus, (s) => setState(() => _filterStatus = s)),
-                _FilterChip('Pending', 'pending', _filterStatus, (s) => setState(() => _filterStatus = s)),
-                _FilterChip('Done', 'done', _filterStatus, (s) => setState(() => _filterStatus = s)),
+                _FilterChipButton('All', null, _filterStatus, (s) => setState(() => _filterStatus = s)),
+                _FilterChipButton('Pending', 'pending', _filterStatus, (s) => setState(() => _filterStatus = s)),
+                _FilterChipButton('Done', 'done', _filterStatus, (s) => setState(() => _filterStatus = s)),
               ],
             ),
           ),
           Expanded(
-            child: tasksAsync.when(
-              data: (tasks) => tasks.isEmpty
-                  ? const Center(child: Text('No tasks yet', style: TextStyle(color: Colors.grey)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: tasks.length,
-                      itemBuilder: (_, i) => _TaskTile(
-                        task: tasks[i],
-                        onComplete: () async {
-                          await ApiService().completeTask(tasks[i]['id'] as String);
-                          ref.invalidate(_tasksProvider);
-                        },
-                        onDelete: () async {
-                          await ApiService().deleteTask(tasks[i]['id'] as String);
-                          ref.invalidate(_tasksProvider);
+            child: RefreshIndicator(
+              onRefresh: () async => ref.invalidate(_tasksProvider),
+              child: tasksAsync.when(
+                data: (tasks) => tasks.isEmpty
+                    ? _EmptyState(
+                        icon: Icons.task_alt,
+                        message: _filterStatus == 'done'
+                            ? 'No completed tasks'
+                            : 'No tasks yet.\nTap + to create one.',
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                        itemCount: tasks.length,
+                        itemBuilder: (_, i) {
+                          final task = tasks[i];
+                          final isDone = task['status'] == 'done';
+                          return _SwipeableTaskTile(
+                            key: ValueKey(task['id']),
+                            task: task,
+                            onComplete: isDone ? null : () async {
+                              HapticFeedback.lightImpact();
+                              await ApiService().completeTask(task['id'] as String);
+                              ref.invalidate(_tasksProvider);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Row(children: [
+                                      const Icon(Icons.check_circle, color: Colors.white, size: 16),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: Text('Done: ${task['title']}')),
+                                    ]),
+                                    backgroundColor: const Color(0xFF2ECC71),
+                                    duration: const Duration(seconds: 2),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            },
+                            onDelete: () async {
+                              await ApiService().deleteTask(task['id'] as String);
+                              ref.invalidate(_tasksProvider);
+                            },
+                          );
                         },
                       ),
-                    ),
-              loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-              error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: Colors.red))),
+                loading: () => _TaskListSkeleton(),
+                error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: Colors.red))),
+              ),
             ),
           ),
         ],
@@ -74,7 +104,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   Future<void> _showAddTaskSheet(BuildContext context) async {
     final titleController = TextEditingController();
     String priority = 'medium';
-    String? dueDate;
 
     await showModalBottomSheet(
       context: context,
@@ -82,7 +111,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       backgroundColor: const Color(0xFF1A1D27),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => Padding(
+        builder: (ctx, setS) => Padding(
           padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -102,7 +131,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 items: ['low', 'medium', 'high', 'urgent']
                     .map((p) => DropdownMenuItem(value: p, child: Text(p.toUpperCase())))
                     .toList(),
-                onChanged: (v) => setState(() => priority = v!),
+                onChanged: (v) => setS(() => priority = v!),
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -113,7 +142,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     await ApiService().createTask({
                       'title': titleController.text,
                       'priority': priority,
-                      if (dueDate != null) 'due_date': dueDate,
                     });
                     ref.invalidate(_tasksProvider);
                     if (context.mounted) Navigator.pop(ctx);
@@ -129,23 +157,83 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 }
 
-Widget _FilterChip(String label, String? value, String? current, void Function(String?) onTap) {
-  final selected = current == value;
-  return Padding(
-    padding: const EdgeInsets.only(right: 8),
-    child: FilterChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(value),
-    ),
-  );
+// ── Swipeable task tile ──────────────────────────────────────────────────────
+
+class _SwipeableTaskTile extends StatelessWidget {
+  final Map<String, dynamic> task;
+  final VoidCallback? onComplete;
+  final VoidCallback onDelete;
+  const _SwipeableTaskTile({super.key, required this.task, required this.onComplete, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDone = task['status'] == 'done';
+
+    return Dismissible(
+      key: ValueKey(task['id']),
+      direction: isDone
+          ? DismissDirection.endToStart
+          : DismissDirection.horizontal,
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd && !isDone) {
+          onComplete?.call();
+          return false; // tile stays, UI updates via provider
+        }
+        // end-to-start = delete
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete task?'),
+            content: Text(task['title'] as String),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+        return confirm ?? false;
+      },
+      onDismissed: (_) => onDelete(),
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2ECC71),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerLeft,
+        child: const Row(children: [
+          Icon(Icons.check, color: Colors.white),
+          SizedBox(width: 8),
+          Text('Complete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+      secondaryBackground: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.red.shade700,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerRight,
+        child: const Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+          SizedBox(width: 8),
+          Icon(Icons.delete_outline, color: Colors.white),
+        ]),
+      ),
+      child: _TaskCard(task: task, onComplete: onComplete),
+    );
+  }
 }
 
-class _TaskTile extends StatelessWidget {
+class _TaskCard extends StatelessWidget {
   final Map<String, dynamic> task;
-  final VoidCallback onComplete;
-  final VoidCallback onDelete;
-  const _TaskTile({required this.task, required this.onComplete, required this.onDelete});
+  final VoidCallback? onComplete;
+  const _TaskCard({required this.task, required this.onComplete});
 
   @override
   Widget build(BuildContext context) {
@@ -160,29 +248,52 @@ class _TaskTile extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: GestureDetector(
-          onTap: isDone ? null : onComplete,
-          child: Icon(
-            isDone ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: isDone ? const Color(0xFF4F6EF7) : Colors.grey,
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 56,
+            decoration: BoxDecoration(
+              color: isDone ? Colors.grey.shade700 : priorityColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                bottomLeft: Radius.circular(12),
+              ),
+            ),
           ),
-        ),
-        title: Text(
-          task['title'] as String,
-          style: TextStyle(
-            decoration: isDone ? TextDecoration.lineThrough : null,
-            color: isDone ? Colors.grey : Colors.white,
-            fontSize: 14,
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: isDone ? null : onComplete,
+            child: Icon(
+              isDone ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: isDone ? const Color(0xFF4F6EF7) : Colors.grey.shade600,
+            ),
           ),
-        ),
-        subtitle: task['due_date'] != null
-            ? Text(task['due_date'] as String, style: const TextStyle(fontSize: 11))
-            : null,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task['title'] as String,
+                    style: TextStyle(
+                      decoration: isDone ? TextDecoration.lineThrough : null,
+                      color: isDone ? Colors.grey : Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (task['due_date'] != null)
+                    Text(task['due_date'] as String,
+                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: priorityColor.withOpacity(0.15),
@@ -190,8 +301,70 @@ class _TaskTile extends StatelessWidget {
               ),
               child: Text(priority, style: TextStyle(fontSize: 10, color: priorityColor)),
             ),
-            IconButton(icon: const Icon(Icons.delete_outline, size: 18), onPressed: onDelete, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Filter chip ──────────────────────────────────────────────────────────────
+
+Widget _FilterChipButton(String label, String? value, String? current, void Function(String?) onTap) {
+  final selected = current == value;
+  return Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: FilterChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(value),
+    ),
+  );
+}
+
+// ── Empty state ──────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  const _EmptyState({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 48, color: Colors.grey.shade700),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey, fontSize: 14, height: 1.6),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Skeleton loading ─────────────────────────────────────────────────────────
+
+class _TaskListSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+      itemCount: 5,
+      itemBuilder: (_, __) => Container(
+        height: 56,
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1D27),
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );

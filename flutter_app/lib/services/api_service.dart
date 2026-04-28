@@ -275,6 +275,11 @@ class ApiService {
     await _dio.post('/health/sync', data: payload);
   }
 
+  Future<Map<String, dynamic>> triggerZeppSync({int days = 3}) async {
+    final r = await _dio.post('/health/zepp-sync', queryParameters: {'days': days});
+    return r.data as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> getHealthSummary({String? date}) async {
     try {
       final r = await _dio.get('/health/summary',

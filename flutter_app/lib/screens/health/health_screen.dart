@@ -2,10 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
-import '../../services/sync_service.dart';
 
 final _healthSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  return ApiService().getHealthSummary();
+  final today = await ApiService().getHealthSummary();
+  // If today has no steps yet (morning before Zepp sync), also fetch yesterday as fallback
+  if ((today['steps'] as num?) == 0 || today['steps'] == null) {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    final yStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2,'0')}-${yesterday.day.toString().padLeft(2,'0')}';
+    try {
+      final prev = await ApiService().getHealthSummary(date: yStr);
+      // Merge: use today's sleep if present, yesterday's steps/HR if today's is empty
+      return {
+        ...prev,
+        'steps': today['steps'] ?? prev['steps'],
+        '_steps_note': today['steps'] == null || (today['steps'] as num) == 0 ? 'yesterday' : null,
+      };
+    } catch (_) {}
+  }
+  return today;
 });
 
 class HealthScreen extends ConsumerStatefulWidget {
@@ -22,9 +36,12 @@ class _HealthScreenState extends ConsumerState<HealthScreen> {
   Future<void> _requestAndSync() async {
     setState(() { _syncing = true; _syncMessage = null; });
     try {
-      final result = await SyncService().syncAll();
-      setState(() { _syncMessage = result.hasError ? 'Sync error: ${result.error}' : 'Health data refreshed from Zepp cloud'; });
+      final result = await ApiService().triggerZeppSync(days: 3);
+      final steps = result['steps_today'] ?? result['steps'] ?? '?';
+      setState(() { _syncMessage = 'Synced from Zepp cloud'; });
       ref.invalidate(_healthSummaryProvider);
+    } catch (e) {
+      setState(() { _syncMessage = 'Sync failed: $e'; });
     } finally {
       setState(() => _syncing = false);
     }
@@ -63,8 +80,10 @@ class _HealthScreenState extends ConsumerState<HealthScreen> {
               ),
             _HealthCard(
               icon: Icons.directions_walk,
-              label: 'Steps Today',
-              value: (s['steps'] as num?)?.toInt().toString() ?? '—',
+              label: s['_steps_note'] == 'yesterday' ? 'Steps Yesterday' : 'Steps Today',
+              value: (s['steps'] as num?)?.toInt() != 0
+                  ? (s['steps'] as num?)?.toInt().toString() ?? '—'
+                  : '—',
               sub: 'steps',
             ),
             _HealthCard(

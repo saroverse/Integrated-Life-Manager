@@ -13,7 +13,8 @@ from app.models.habit import Habit, HabitLog
 from app.models.health import HealthMetric, SleepSession
 from app.schemas.chat import ChatHistoryResponse, ChatMessageRequest, ChatMessageResponse
 from app.services import summary_service
-from app.services.ai_service import generate_chat, generate_text
+from app.services.ai_service import generate_chat_with_tools, generate_text
+from app.services.chat_tools import TOOLS, execute_tool
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -126,9 +127,13 @@ async def send_message(data: ChatMessageRequest, db: AsyncSession = Depends(get_
     )
     db.add(user_msg)
 
-    # Call AI
+    # Call AI with tool-use loop
     try:
-        content, model_used = await generate_chat(messages)
+        content, model_used, actions_taken = await generate_chat_with_tools(
+            messages,
+            TOOLS,
+            lambda name, args: execute_tool(name, args, db),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI generation failed: {e}")
 
@@ -145,7 +150,15 @@ async def send_message(data: ChatMessageRequest, db: AsyncSession = Depends(get_
     await db.commit()
     await db.refresh(assistant_msg)
 
-    return assistant_msg
+    return {
+        "id": assistant_msg.id,
+        "session_id": assistant_msg.session_id,
+        "role": assistant_msg.role,
+        "content": assistant_msg.content,
+        "model_used": assistant_msg.model_used,
+        "timestamp": assistant_msg.timestamp,
+        "actions_taken": actions_taken,
+    }
 
 
 @router.get("/history", response_model=ChatHistoryResponse)
